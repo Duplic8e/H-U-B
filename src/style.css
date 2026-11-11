@@ -1,0 +1,301 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --text: #15181d;
+  --muted: #5d6573;
+  --border: #dde1e7;
+  --brand: #3b6ef5;
+  --ok: #1f8a5b;
+  --warn: #a8660c;
+  --error: #c4352b;
+  --radius: 18px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1014;
+    --surface: #171b21;
+    --text: #eef1f5;
+    --muted: #9aa3b1;
+    --border: #2a3039;
+    --brand: #7d9dff;
+    --ok: #5fd39b;
+    --warn: #f0b45c;
+    --error: #ff8a80;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: var(--brand);
+}
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(var(--safe-top) + 12px) 16px 10px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.bar h1 {
+  flex: 1;
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -10px;
+  border-radius: 12px;
+  color: var(--muted);
+}
+
+.icon-btn.back {
+  margin: 0 0 0 -10px;
+}
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 8px 16px calc(var(--safe-bottom) + 32px);
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--warn) 10%, var(--surface));
+  color: var(--text);
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.notice svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--warn);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 96px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.tile:active {
+  transform: scale(0.98);
+}
+
+.tile:hover,
+.tile:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.tile-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.tile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tile-name {
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.tile-tagline {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.tile-status {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.tile-status[data-tone='ok'] {
+  color: var(--ok);
+}
+
+.tile-status[data-tone='pending'] {
+  color: var(--warn);
+}
+
+.tile-status[data-tone='error'] {
+  color: var(--error);
+}
+
+.card {
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.card h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.muted {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+input {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  /* 16px stops Safari zooming on focus */
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+input:focus {
+  border-color: var(--brand);
+  outline: 2px solid color-mix(in srgb, var(--brand) 30%, transparent);
+}
+
+.status {
+  min-height: 1.4em;
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.status[data-tone='ok'] {
+  color: var(--ok);
+}
+
+.status[data-tone='error'] {
+  color: var(--error);
+}
+
+.status[data-tone='busy'] {
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn.primary {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn.primary {
+    color: #0d1014;
+  }
+}
+
+.btn.danger {
+  color: var(--error);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+}
+
+.steps {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  font-size: 15px;
+}
+
+.steps li {
+  margin-bottom: 6px;
+}

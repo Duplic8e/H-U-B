@@ -1,0 +1,107 @@
+name: Build and deploy the Hub
+
+# Builds the Hub home page plus every helper from its own repo, and serves them as one site:
+#   /H-U-B/          the Hub
+#   /H-U-B/ledger/   Ledger   (Duplic8e/Financial)
+#   /H-U-B/torque/   Torque   (Duplic8e/Torque)
+on:
+  push:
+    branches: [main]
+  # Actions tab → "Build and deploy the Hub" → Run workflow. The refs let you try a branch of a helper.
+  workflow_dispatch:
+    inputs:
+      ledger_ref:
+        description: Branch, tag or commit of Duplic8e/Financial
+        default: main
+      torque_ref:
+        description: Branch, tag or commit of Duplic8e/Torque
+        default: main
+  # Picks up changes merged into the helpers' repos without anyone having to remember.
+  schedule:
+    - cron: '23 9 * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  SITE_BASE: /${{ github.event.repository.name }}/
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out Ledger
+        uses: actions/checkout@v4
+        with:
+          repository: Duplic8e/Financial
+          ref: ${{ inputs.ledger_ref || 'main' }}
+          path: _apps/ledger
+
+      - name: Check out Torque
+        uses: actions/checkout@v4
+        with:
+          repository: Duplic8e/Torque
+          ref: ${{ inputs.torque_ref || 'main' }}
+          path: _apps/torque
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            _apps/ledger/package-lock.json
+            _apps/torque/package-lock.json
+
+      - name: Hub
+        run: npm ci && npm test && npm run build
+        env:
+          BASE_PATH: ${{ env.SITE_BASE }}
+
+      # Each helper's own repo runs its full test suite on every push; here we only build.
+      - name: Ledger
+        working-directory: _apps/ledger
+        run: npm ci && npm run build
+        env:
+          BASE_PATH: ${{ env.SITE_BASE }}ledger/
+          VITE_HUB_URL: ${{ env.SITE_BASE }}
+
+      - name: Torque
+        working-directory: _apps/torque
+        run: npm ci && npm run build
+        env:
+          BASE_PATH: ${{ env.SITE_BASE }}torque/
+          VITE_HUB_URL: ${{ env.SITE_BASE }}
+
+      - name: Assemble the site
+        run: |
+          mkdir -p site
+          cp -R dist/. site/
+          cp -R _apps/ledger/dist site/ledger
+          cp -R _apps/torque/dist site/torque
+          touch site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          reporting_interval: 15000
+          error_count: 15
