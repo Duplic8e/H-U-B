@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
+import { useSyncExternalStore } from 'preact/compat';
 import { AppDataContext, UiContext, type AppData, type SheetState, type Toast as ToastData, type UiApi } from './core/context';
 import { Fab } from './core/components/Fab';
 import { TabBar } from './core/components/TabBar';
@@ -8,6 +9,7 @@ import { todayLocal } from './core/dates';
 import { useLive } from './core/useLive';
 import { getRepo } from './data/repo';
 import { getSync } from './sync';
+import { HUB_URL, readHubConfig } from './sync/hub';
 import { computeDue } from './engine/due';
 import { attentionCount } from './engine/health';
 import { Costs } from './features/costs/Costs';
@@ -50,6 +52,7 @@ async function loadAll() {
 
 export function App() {
   const route = useRoute();
+  const syncSnap = useSyncExternalStore(getSync().subscribe, getSync().getSnapshot);
   const raw = useLive(loadAll);
 
   // Each tab opens at its top, not at the previous tab's scroll position.
@@ -121,12 +124,24 @@ export function App() {
   }, [data !== null, badgeEnabled, attention]);
 
   if (!raw) return <div class="splash" aria-busy="true">Torque</div>;
+  // A fresh install inside the Hub: hold onboarding until the first pull says whether the cloud has a car already.
+  const restoring = !data && readHubConfig() !== null && !syncSnap.state.lastSyncedAt && !syncSnap.state.lastError;
+  if (restoring) return <div class="splash" aria-busy="true">Restoring from cloud…</div>;
   if (!data) return <Onboarding repo={repo} />;
 
   return (
     <AppDataContext.Provider value={data}>
       <UiContext.Provider value={ui}>
-        <header class="app-header"><h1>{route === 'dashboard' ? data.vehicle.nickname : TITLES[route]}</h1></header>
+        <header class="app-header">
+          <h1>{route === 'dashboard' ? data.vehicle.nickname : TITLES[route]}</h1>
+          {HUB_URL && (
+            <a class="hub-link" href={HUB_URL} aria-label="Back to Hub">
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
+              </svg>
+            </a>
+          )}
+        </header>
         <main class="app-main">
           {route === 'dashboard' && <Dashboard />}
           {route === 'schedule' && <Schedule />}

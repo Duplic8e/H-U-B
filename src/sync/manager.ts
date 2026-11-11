@@ -1,6 +1,7 @@
 import type { Repo } from '../data/repo';
 import type { TorqueDB } from '../data/schema';
 import { dumpToPayload, canonicalize, payloadToDump } from './payload';
+import { sameConfig } from './hub';
 import { SyncError, type SyncConfig, type SyncProvider, type SyncState } from './types';
 
 const KEY_CONFIG = 'sync.config';
@@ -23,6 +24,8 @@ export interface SyncDeps {
   debounceMs?: number;
   now?: () => Date;
   isOnline?: () => boolean;
+  /** The connection saved by the Hub, if Torque is running inside it. */
+  hubConfig?: () => SyncConfig | null;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -81,7 +84,34 @@ export class SyncManager {
     this.state = ((await db.kv.get(KEY_STATE))?.value as SyncState | undefined) ?? { pending: 0 };
     this.installHooks();
     this.publish();
+    await this.adoptHubConfig();
     if (this.config) void this.syncNow();
+  }
+
+  /**
+   * Inside the Hub, the Hub's connection is the source of truth: a fresh install picks it up with no setup, and a
+   * token replaced in the Hub replaces Torque's. The first sync then merges by id, so nothing on either side is lost.
+   */
+  private async adoptHubConfig(): Promise<void> {
+    const hub = this.deps.hubConfig?.() ?? null;
+    if (!hub || sameConfig(hub, this.config)) return;
+    try {
+      await this.checkRepo(hub);
+    } catch (e) {
+      const err = e instanceof SyncError ? e : new SyncError('other', 'Could not use the Hub connection.');
+      const at = this.now().toISOString();
+      this.state = { ...this.state, lastError: { kind: err.kind, message: err.message, at }, firstFailureAt: this.state.firstFailureAt ?? at };
+      this.publish();
+      return;
+    }
+    const switchingRepo = this.config && (this.config.owner.toLowerCase() !== hub.owner.toLowerCase() || this.config.repo.toLowerCase() !== hub.repo.toLowerCase());
+    if (switchingRepo) await this.deps.db.kv.delete(KEY_UPLOADED); // photos must upload again to the new repo
+    await this.save(hub, { pending: Math.max(1, this.state.pending), lastSyncedAt: switchingRepo ? undefined : this.state.lastSyncedAt });
+  }
+
+  /** True when the current connection is the one the Hub manages. */
+  isHubManaged(): boolean {
+    return this.config !== null && sameConfig(this.config, this.deps.hubConfig?.() ?? null);
   }
 
   /** Browser triggers: coming back to the app, and the network returning. */

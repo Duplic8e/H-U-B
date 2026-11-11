@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'preact/compat';
 import { useEffect, useState } from 'preact/hooks';
 import { getDb, getRepo } from '../data/repo';
 import { GitHubProvider } from './github';
+import { readHubConfig } from './hub';
 import { SyncManager } from './manager';
 import { describeSync, type SyncDescription } from './status';
 
@@ -9,7 +10,7 @@ let manager: SyncManager | undefined;
 
 /** The app-wide sync manager. */
 export function getSync(): SyncManager {
-  return (manager ??= new SyncManager({ db: getDb(), repo: getRepo(), makeProvider: (c) => new GitHubProvider(c) }));
+  return (manager ??= new SyncManager({ db: getDb(), repo: getRepo(), makeProvider: (c) => new GitHubProvider(c), hubConfig: readHubConfig }));
 }
 
 export function useSyncStatus(): { configured: boolean; description: SyncDescription | null; lastSyncedAt?: string } {
