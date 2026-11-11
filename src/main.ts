@@ -16,57 +16,107 @@ const ICON_CLOUD = '<path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 12 3.5
 
 // ---- home ----
 
+const ICON_CHEVRON = '<path d="m9 18 6-6-6-6"/>';
+const ICON_CHECK = '<path d="M20 6 9 17l-5-5"/>';
+const ICON_ALERT = '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>';
+
+function greeting(now: Date): string {
+  const h = now.getHours();
+  if (h < 5) return 'Good evening';
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+type Tone = 'ok' | 'pending' | 'error' | 'busy';
+
+function statusCard(tone: Tone, title: string, detail: string): string {
+  const icon = tone === 'ok' ? ICON_CHECK : tone === 'busy' ? ICON_CLOUD : ICON_ALERT;
+  return `
+    <a class="status-card" data-tone="${tone}" href="#settings" id="backup-status">
+      <span class="status-icon">${svg(icon, 18)}</span>
+      <span class="status-text">
+        <span class="status-title">${esc(title)}</span>
+        <span class="status-detail">${esc(detail)}</span>
+      </span>
+      <span class="chevron">${svg(ICON_CHEVRON, 18)}</span>
+    </a>`;
+}
+
 function renderHome(): void {
   const cloud = readCloud();
+  const now = new Date();
   document.title = 'Hub';
+  const date = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   root.innerHTML = `
-    <header class="bar">
-      <h1>Hub</h1>
-      <a class="icon-btn" href="#settings" aria-label="Settings">${svg(ICON_GEAR)}</a>
+    <header class="hero">
+      <div class="hero-text">
+        <p class="eyebrow">${esc(date)}</p>
+        <h1>${greeting(now)}</h1>
+      </div>
+      <a class="round-btn" href="#settings" aria-label="Settings">${svg(ICON_GEAR, 22)}</a>
     </header>
     <main class="page">
       ${
         cloud
-          ? ''
-          : `<a class="notice" href="#settings">
-              ${svg(ICON_CLOUD, 20)}
-              <span><strong>Cloud backup is off.</strong> Your data only lives on this device. Tap to connect your private data repo.</span>
-            </a>`
+          ? statusCard('busy', 'Checking your backups…', `${cloud.owner}/${cloud.repo}`)
+          : statusCard('pending', 'Cloud backup is off', 'Your data only lives on this phone. Tap to connect.')
       }
-      <ul class="tiles" role="list">
+      <h2 class="section-label">Helpers</h2>
+      <ul class="apps" role="list">
         ${APPS.map(
           (app) => `
           <li>
-            <a class="tile" href="${base}${app.id}/" style="--accent:${app.color}">
-              <span class="tile-icon">${svg(app.icon, 28)}</span>
-              <span class="tile-text">
-                <span class="tile-name">${esc(app.name)}</span>
-                <span class="tile-tagline">${esc(app.tagline)}</span>
-                <span class="tile-status" data-status="${app.id}">${cloud ? 'Checking backup…' : 'Not backed up'}</span>
-              </span>
+            <a class="app-card" href="${base}${app.id}/">
+              <span class="app-icon" style="background:linear-gradient(180deg, ${app.gradient[0]}, ${app.gradient[1]})">${svg(app.icon, 30)}</span>
+              <span class="app-name">${esc(app.name)}</span>
+              <span class="app-tagline">${esc(app.tagline)}</span>
+              <span class="app-status" data-status="${app.id}" data-tone="${cloud ? 'busy' : 'pending'}">${cloud ? 'Checking…' : 'Not backed up'}</span>
             </a>
           </li>`,
         ).join('')}
       </ul>
+      <p class="footnote">${
+        cloud
+          ? `Backed up to the private repo <strong>${esc(cloud.owner)}/${esc(cloud.repo)}</strong>. Every sync is a commit, so nothing is ever lost.`
+          : 'Connect a private GitHub repo in Settings so deleting the app never deletes your data.'
+      }</p>
     </main>`;
   if (cloud) void fillStatuses(cloud);
 }
 
 async function fillStatuses(cloud: CloudConfig): Promise<void> {
-  await Promise.all(
+  const results = await Promise.all(
     APPS.map(async (app) => {
       const el = root.querySelector<HTMLElement>(`[data-status="${app.id}"]`);
-      if (!el) return;
       try {
         const when = await lastBackup(cloud, app.dataFile);
-        el.textContent = when ? `Backed up ${timeAgo(when)}` : 'Open once to back up';
-        el.dataset.tone = when ? 'ok' : 'pending';
+        if (el) {
+          el.textContent = when ? `Backed up ${timeAgo(when)}` : 'Open once to back up';
+          el.dataset.tone = when ? 'ok' : 'pending';
+        }
+        return { app, when, error: null as string | null };
       } catch (e) {
-        el.textContent = e instanceof Error ? e.message : 'Could not check backup';
-        el.dataset.tone = 'error';
+        const error = e instanceof Error ? e.message : 'Could not check backup';
+        if (el) {
+          el.textContent = 'Could not check';
+          el.dataset.tone = 'error';
+        }
+        return { app, when: null, error };
       }
     }),
   );
+
+  const card = root.querySelector('#backup-status');
+  if (!card) return;
+  const failed = results.find((r) => r.error);
+  const missing = results.filter((r) => !r.error && !r.when).map((r) => r.app.name);
+  const latest = results.map((r) => r.when).filter((d): d is Date => d !== null).sort((a, b) => b.getTime() - a.getTime())[0];
+  let html: string;
+  if (failed) html = statusCard('error', 'Backup needs attention', failed.error!);
+  else if (missing.length) html = statusCard('pending', `Open ${missing.join(' and ')} once`, 'So it can make its first backup.');
+  else html = statusCard('ok', 'Everything is backed up', latest ? `Latest backup ${timeAgo(latest)}` : '');
+  card.outerHTML = html;
 }
 
 // ---- settings ----

@@ -44,13 +44,21 @@ async function github(route) {
 const browser = await chromium.launch();
 const errors = [];
 async function phone() {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: shots ? 2 : 1, serviceWorkers: 'block' });
+  const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, colorScheme: process.env.SCHEME ?? 'light', deviceScaleFactor: shots ? 2 : 1, serviceWorkers: 'block' });
   await ctx.route('https://api.github.com/**', github);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   return { ctx, page };
 }
-const shot = async (page, name) => shots && (await page.screenshot({ path: `${shots}/${name}.png` }));
+// iPhone 14 Pro: 59pt status bar with the Dynamic Island, 34pt home indicator. Drawn only for screenshots.
+const IPHONE = `html:root { --safe-top: 59px; --safe-bottom: 34px; }
+  body::after { content: ''; position: fixed; z-index: 9999; top: 11px; left: 50%; width: 126px; height: 37px; margin-left: -63px; border-radius: 20px; background: #000; pointer-events: none; }`;
+const shot = async (page, name) => {
+  if (!shots) return;
+  const tag = await page.addStyleTag({ content: IPHONE });
+  await page.screenshot({ path: `${shots}/${name}.png` });
+  await tag.evaluate((el) => el.remove());
+};
 const waitFor = async (cond, what, ms = 15000) => {
   const end = Date.now() + ms;
   while (Date.now() < end) { if (await cond()) return; await new Promise((r) => setTimeout(r, 200)); }
@@ -61,8 +69,8 @@ const remote = (p) => JSON.parse(files.get(p).bytes.toString('utf8'));
 // ---- first phone ----
 let { ctx, page } = await phone();
 await page.goto(hub);
-await page.getByRole('link', { name: /Ledger/ }).waitFor();
-assert(await page.getByText('Cloud backup is off.').isVisible(), 'warns that nothing is backed up');
+await page.getByRole('link', { name: /^Ledger/ }).waitFor();
+assert(await page.getByText('Cloud backup is off').isVisible(), 'warns that nothing is backed up');
 await shot(page, '1-hub-off');
 
 await page.getByRole('link', { name: 'Settings' }).click();
@@ -78,7 +86,7 @@ assert.equal(JSON.parse(saved).token, TOKEN);
 
 // Ledger: some data, then it backs itself up.
 await page.getByRole('link', { name: 'Back to Hub' }).click();
-await page.getByRole('link', { name: /Ledger/ }).click();
+await page.getByRole('link', { name: /^Ledger/ }).click();
 await page.waitForURL(/\/ledger\//);
 await page.evaluate(() => {
   localStorage.setItem('ledger-disclaimer-ack', new Date().toISOString()); // Ledger's first-run notice
@@ -94,7 +102,7 @@ await shot(page, '3-ledger');
 
 // Torque: onboard a car, which is then backed up.
 await ledgerHub.click();
-await page.getByRole('link', { name: /Torque/ }).click();
+await page.getByRole('link', { name: /^Torque/ }).click();
 await page.waitForURL(/\/torque\//);
 await page.getByRole('button', { name: 'Get started' }).click();
 await page.getByRole('button', { name: 'Next' }).click();
@@ -111,8 +119,8 @@ await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', {
 await waitFor(() => files.has('torque/data.json') && remote('torque/data.json').vehicles.length === 1, 'Torque to upload');
 
 await page.goto(hub);
-await page.getByText(/Backed up just now/).first().waitFor();
-assert.equal(await page.getByText(/Backed up/).count(), 2, 'both tiles show a backup time');
+await page.getByText('Everything is backed up').waitFor();
+assert.equal(await page.locator('.app-status[data-tone="ok"]').count(), 2, 'both tiles show a backup time');
 await shot(page, '5-hub-on');
 await ctx.close();
 
