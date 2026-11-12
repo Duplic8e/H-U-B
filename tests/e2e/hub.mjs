@@ -119,8 +119,9 @@ await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', {
 await waitFor(() => files.has('torque/data.json') && remote('torque/data.json').vehicles.length === 1, 'Torque to upload');
 
 await page.goto(hub);
-await page.getByText('Everything is backed up').waitFor();
-assert.equal(await page.locator('.app-status[data-tone="ok"]').count(), 2, 'both tiles show a backup time');
+// Ledger and Torque are backed up; Lift, not opened in this test, is the one still waiting.
+await page.getByText('Open Lift once').waitFor();
+assert.equal(await page.locator('.app-status[data-tone="ok"]').count(), 2, 'both used tiles show a backup time');
 await shot(page, '5-hub-on');
 await ctx.close();
 

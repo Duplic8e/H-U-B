@@ -1,6 +1,7 @@
 /**
  * Every helper the Hub serves. To add one: add an entry here, then add its build to
- * .github/workflows/deploy.yml (the same three lines as the others). The app is served at
+ * .github/workflows/deploy.yml (the same three lines as the others). Helpers built in
+ * this repo live under apps/<id>. The app is served at
  * `<hub>/<id>/`, and keeps its cloud data under `<id>/` in the data repo.
  */
 export interface HubApp {
@@ -36,5 +37,14 @@ export const APPS: HubApp[] = [
     color: '#ff9f0a',
     gradient: ['#ffb340', '#ff7a00'],
     icon: '<circle cx="12" cy="12" r="9"/><path d="M12 12 16.5 7.5"/><path d="M12 3v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 7l1.4-1.4"/>',
+  },
+  {
+    id: 'lift',
+    name: 'Lift',
+    tagline: 'Gym workouts, records and progress',
+    dataFile: 'lift/data.json',
+    color: '#ff3b30',
+    gradient: ['#ff5e6c', '#d70015'],
+    icon: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
   },
 ];
