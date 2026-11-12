@@ -47,4 +47,13 @@ export const APPS: HubApp[] = [
     gradient: ['#ff5e6c', '#d70015'],
     icon: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
   },
+  {
+    id: 'french',
+    name: 'French',
+    tagline: 'Vocabulary with spaced repetition',
+    dataFile: 'french/data.json',
+    color: '#3478f6',
+    gradient: ['#4f8cff', '#1f4fd8'],
+    icon: '<rect x="3" y="5" width="14" height="11" rx="2"/><path d="M7 19h12a2 2 0 0 0 2-2V9"/><path d="M7 12.5 9.5 8l2.5 4.5M8 11h3"/>',
+  },
 ];

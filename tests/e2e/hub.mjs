@@ -119,8 +119,8 @@ await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', {
 await waitFor(() => files.has('torque/data.json') && remote('torque/data.json').vehicles.length === 1, 'Torque to upload');
 
 await page.goto(hub);
-// Ledger and Torque are backed up; Lift, not opened in this test, is the one still waiting.
-await page.getByText('Open Lift once').waitFor();
+// Ledger and Torque are backed up; Lift and French, not opened in this test, are still waiting.
+await page.getByText('Open Lift and French once').waitFor();
 assert.equal(await page.locator('.app-status[data-tone="ok"]').count(), 2, 'both used tiles show a backup time');
 await shot(page, '5-hub-on');
 await ctx.close();

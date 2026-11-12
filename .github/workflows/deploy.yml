@@ -5,6 +5,7 @@ name: Build and deploy the Hub
 #   /H-U-B/ledger/   Ledger   (Duplic8e/Financial)
 #   /H-U-B/torque/   Torque   (Duplic8e/Torque)
 #   /H-U-B/lift/     Lift     (apps/lift in this repo)
+#   /H-U-B/french/   French   (apps/french in this repo)
 on:
   push:
     branches: [main]
@@ -62,6 +63,7 @@ jobs:
             _apps/ledger/package-lock.json
             _apps/torque/package-lock.json
             apps/lift/package-lock.json
+            apps/french/package-lock.json
 
       - name: Hub
         run: npm ci && npm test && npm run build
@@ -90,6 +92,13 @@ jobs:
           BASE_PATH: ${{ env.SITE_BASE }}lift/
           VITE_HUB_URL: ${{ env.SITE_BASE }}
 
+      - name: French
+        working-directory: apps/french
+        run: npm ci && npm test && npm run build
+        env:
+          BASE_PATH: ${{ env.SITE_BASE }}french/
+          VITE_HUB_URL: ${{ env.SITE_BASE }}
+
       - name: Assemble the site
         run: |
           mkdir -p site
@@ -97,6 +106,7 @@ jobs:
           cp -R _apps/ledger/dist site/ledger
           cp -R _apps/torque/dist site/torque
           cp -R apps/lift/dist site/lift
+          cp -R apps/french/dist site/french
           touch site/.nojekyll
 
       - uses: actions/upload-pages-artifact@v3

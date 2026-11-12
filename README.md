@@ -8,6 +8,7 @@ One home for all my helpers. Live at **https://duplic8e.github.io/H-U-B/**.
 | `/H-U-B/ledger/` | Ledger: budget, investments, planning | [Duplic8e/Financial](https://github.com/Duplic8e/Financial) |
 | `/H-U-B/torque/` | Torque: car maintenance | [Duplic8e/Torque](https://github.com/Duplic8e/Torque) |
 | `/H-U-B/lift/` | Lift: gym workouts, records, progress | `apps/lift` in this repo |
+| `/H-U-B/french/` | French: vocabulary with spaced repetition | `apps/french` in this repo |
 
 Ledger and Torque keep their own repos and are developed there. Lift lives in `apps/lift` here
 (`cd apps/lift && npm ci && npm test && npm run dev`). This repo builds all of them and serves
@@ -23,6 +24,7 @@ H-U-B-helper/
   ledger/data.json      Ledger's full backup
   torque/data.json      Torque's records (photos in torque/attachments/)
   lift/data.json        Lift's routines, workouts and sets
+  french/data.json      French progress on each word, and your own words
 ```
 
 Every sync is a commit, so the repo's history is also a full undo history.

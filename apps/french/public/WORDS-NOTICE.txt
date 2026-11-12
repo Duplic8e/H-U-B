@@ -1,0 +1,15 @@
+words.json in this folder is a derived dataset.
+
+1. FreeDict French-English dictionary (fra-eng)
+   https://github.com/freedict/fd-dictionaries/tree/master/fra-eng
+   Licence: GNU General Public License, version 2 or (at your option) any later version.
+   Used for: the French headwords, English translations, part of speech, gender and pronunciation.
+   Changes: reduced to up to three translations per word, entries with the same spelling merged,
+   and the glosses of about 85 very common function words rewritten by hand.
+
+2. FrequencyWords, French (fr_50k, OpenSubtitles 2018) by Hermit Dave
+   https://github.com/hermitdave/FrequencyWords
+   Licence: Creative Commons Attribution-ShareAlike 4.0 (content).
+   Used for: the order of the words, most common first. Words not in that list were left out.
+
+words.json itself is offered under the GNU GPL version 2 or later, with the ordering under CC BY-SA 4.0.
