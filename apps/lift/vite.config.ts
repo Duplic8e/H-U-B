@@ -32,6 +32,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
+        // Exercise photos are cached the first time each is shown, so the demos work offline afterwards.
+        runtimeCaching: [{ urlPattern: /\/exercises\/.*\.jpg$/, handler: 'CacheFirst', options: { cacheName: 'lift-exercise-photos', expiration: { maxEntries: 400 } } }],
       },
     }),
   ],

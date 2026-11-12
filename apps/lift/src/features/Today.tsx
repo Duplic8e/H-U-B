@@ -1,17 +1,14 @@
 import { useApp } from '../context';
 import { nextRoutine } from '../data/rotation';
-import { durationMinutes, volume } from '../data/stats';
+import { daysTrainedThisWeek, durationMinutes, volume, weekKey, weekStreak } from '../data/stats';
 import type { Routine } from '../data/types';
 import { formatVolume } from '../data/units';
 import { go } from '../router';
 import { HUB_URL } from '../sync/sync';
-import { Header, Icon, shortDate, useLive } from '../ui/kit';
+import { ExerciseDemo } from '../ui/ExerciseDemo';
+import { Header, Icon, clock, shortDate, useLive, useTick } from '../ui/kit';
 
-function weekStart(d = new Date()): string {
-  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); // Monday
-  return x.toISOString();
-}
+const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export function Today() {
   const { repo, settings } = useApp();
@@ -19,10 +16,15 @@ export function Today() {
   const finished = useLive(() => repo.finishedWorkouts()) ?? [];
   const exercises = useLive(() => repo.listExercises()) ?? [];
   const active = useLive(() => repo.activeWorkout());
+  const sets = useLive(async () => (await repo.db.sets.toArray()).filter((s) => !s.deletedAt && s.done)) ?? [];
+  const now = useTick(active ? 1000 : 60_000);
   const last = finished[0];
-  const lastSets = useLive(async () => (last ? repo.workoutSets(last.id) : []), [last?.id]) ?? [];
   const next = nextRoutine(routines, finished);
-  const thisWeek = finished.filter((w) => (w.finishedAt ?? '') >= weekStart()).length;
+  const trained = daysTrainedThisWeek(finished);
+  const todayIndex = (new Date().getDay() + 6) % 7;
+  const week = weekKey(new Date());
+  const weekIds = new Set(finished.filter((w) => weekKey(new Date(w.finishedAt!)) === week).map((w) => w.id));
+  const weekVolume = volume(sets.filter((s) => weekIds.has(s.workoutId)));
   const name = (id: string) => exercises.find((e) => e.id === id)?.name ?? 'Exercise';
 
   const start = async (r?: Routine) => {
@@ -40,28 +42,25 @@ export function Today() {
         </>}
       />
       <div class="page">
-        <p class="muted" style={{ margin: '0 4px' }}>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} · {thisWeek} workout{thisWeek === 1 ? '' : 's'} this week</p>
+        <p class="muted" style={{ margin: '0 4px' }}>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
 
         {active ? (
-          <section class="card">
-            <p class="section-label" style={{ margin: '0 0 4px' }}>In progress</p>
+          <section class="hero-card" aria-label="Workout in progress">
+            <p class="eyebrow">In progress · {clock(now - Date.parse(active.startedAt))}</p>
             <h2>{active.name}</h2>
-            <p class="muted" style={{ marginTop: 0 }}>Started {new Date(active.startedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</p>
-            <a class="btn primary block" href="#/workout">Resume workout</a>
+            <p>Pick up where you left off.</p>
+            <a class="btn block" href="#/workout">Resume workout</a>
           </section>
         ) : next ? (
-          <section class="card" aria-label="Next workout">
-            <p class="section-label" style={{ margin: '0 0 4px' }}>Up next</p>
+          <section class="hero-card" aria-label="Next workout">
+            <p class="eyebrow">Up next</p>
             <h2>{next.name}</h2>
-            <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 16px' }}>
-              {next.items.map((i) => (
-                <li key={i.exerciseId} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderTop: '0.5px solid var(--separator)' }}>
-                  <span>{name(i.exerciseId)}</span>
-                  <span class="muted">{i.sets} × {i.repsMin === i.repsMax ? i.repsMin : `${i.repsMin}–${i.repsMax}`}</span>
-                </li>
-              ))}
-            </ul>
-            <button type="button" class="btn primary block" onClick={() => void start(next)}>Start {next.name}</button>
+            <p>{next.items.length} exercises · {next.items.reduce((n, i) => n + i.sets, 0)} sets</p>
+            <div class="hero-thumbs" aria-hidden="true">
+              {next.items.slice(0, 5).map((i) => <ExerciseDemo key={i.exerciseId} exerciseId={i.exerciseId} name={name(i.exerciseId)} size="thumb" />)}
+              {next.items.length > 5 && <span class="hero-more">+{next.items.length - 5}</span>}
+            </div>
+            <button type="button" class="btn block" onClick={() => void start(next)}>Start {next.name}</button>
           </section>
         ) : (
           <section class="card">
@@ -71,10 +70,38 @@ export function Today() {
           </section>
         )}
 
+        <div class="week" role="img" aria-label={`${trained.filter(Boolean).length} workout days this week`}>
+          {DAYS.map((d, i) => (
+            <div key={i} class={`${trained[i] ? 'on' : ''} ${i === todayIndex ? 'today' : ''}`}>
+              {d}<i><Icon name="check" class="" /></i>
+            </div>
+          ))}
+        </div>
+        <div class="tiles">
+          <div class="tile"><b>{weekIds.size}</b><span>This week</span></div>
+          <div class="tile"><b>{weekStreak(finished)}</b><span>Week streak</span></div>
+          <div class="tile"><b>{formatVolume(weekVolume, settings.unit).replace(` ${settings.unit}`, '')}</b><span>{settings.unit} lifted</span></div>
+        </div>
+
+        {next && !active && (
+          <>
+            <p class="section-label">In {next.name}</p>
+            <ul class="list">
+              {next.items.map((i) => (
+                <li key={i.exerciseId}><a class="row" href={`#/progress/${i.exerciseId}`}>
+                  <ExerciseDemo exerciseId={i.exerciseId} name={name(i.exerciseId)} size="thumb" />
+                  <span class="row-main"><span class="row-title">{name(i.exerciseId)}</span><span class="row-sub">{i.sets} × {i.repsMin === i.repsMax ? i.repsMin : `${i.repsMin}–${i.repsMax}`}</span></span>
+                  <Icon name="chevron" class="chev" />
+                </a></li>
+              ))}
+            </ul>
+          </>
+        )}
+
         {!active && (
           <>
-            {routines.length > 1 && <p class="section-label">Or start another</p>}
-            <ul class="list" style={{ marginTop: routines.length > 1 ? 0 : 16 }}>
+            <p class="section-label">Or start another</p>
+            <ul class="list">
               {routines.filter((r) => r.id !== next?.id).map((r) => (
                 <li key={r.id}><button type="button" class="row" onClick={() => void start(r)}>
                   <span class="row-main"><span class="row-title">{r.name}</span><span class="row-sub">{r.items.length} exercises</span></span>
@@ -96,7 +123,7 @@ export function Today() {
               <span class="row">
                 <span class="row-main">
                   <span class="row-title">{last.name}</span>
-                  <span class="row-sub">{shortDate(last.finishedAt!)} · {durationMinutes(last)} min · {formatVolume(volume(lastSets), settings.unit)}</span>
+                  <span class="row-sub">{shortDate(last.finishedAt!)} · {durationMinutes(last)} min · {formatVolume(volume(sets.filter((s) => s.workoutId === last.id)), settings.unit)}</span>
                 </span>
                 <Icon name="chevron" class="chev" />
               </span>

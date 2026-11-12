@@ -84,6 +84,12 @@ assert(await page.getByRole('link', { name: 'Back to Hub' }).isVisible(), 'Hub b
 await shot(page, 'lift-2-today');
 await page.getByRole('button', { name: 'Start Push' }).click();
 await page.getByRole('region', { name: 'Bench Press' }).waitFor();
+// The demo: a photo thumbnail opens the movement and its steps.
+await page.getByRole('button', { name: 'How to do Bench Press' }).click();
+await page.getByRole('img', { name: /Bench Press: start and end position/ }).waitFor();
+assert((await page.locator('.steps li').count()) > 1, 'written steps');
+await shot(page, 'lift-3a-demo');
+await page.getByRole('button', { name: 'Close' }).click();
 await logBench(page, 135, 8);
 await page.getByRole('timer', { name: 'Rest timer' }).waitFor();
 await shot(page, 'lift-3-workout');
@@ -113,8 +119,15 @@ await shot(page, 'lift-4-summary');
 
 // Progress chart and records
 await page.getByRole('link', { name: 'Progress' }).click();
+await page.getByRole('img', { name: /^Workouts per week/ }).waitFor();
+await page.getByRole('img', { name: /^Volume per week/ }).waitFor();
+await page.getByRole('region', { name: 'Sets per muscle' }).getByText('Chest').waitFor();
+await shot(page, 'lift-4a-charts');
 await page.getByRole('link', { name: /Bench Press/ }).first().click();
 await page.getByRole('img', { name: /Estimated one-rep max/ }).waitFor();
+await page.getByRole('radio', { name: 'Volume' }).click();
+await page.getByRole('img', { name: /Session volume/ }).waitFor();
+await page.getByRole('region', { name: 'Progress chart' }).scrollIntoViewIfNeeded();
 await shot(page, 'lift-5-progress');
 
 // Units convert everything already logged.

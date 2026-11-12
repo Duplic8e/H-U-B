@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import { useApp } from '../context';
 import { EQUIPMENT, MUSCLES, type Equipment, type Muscle } from '../data/types';
 import { Icon, Sheet, useLive } from '../ui/kit';
+import { ExerciseDemo } from '../ui/ExerciseDemo';
 
 /** Search the exercise list, or create a new exercise on the spot. */
 export function ExercisePicker({ open, onClose, onPick, exclude = [] }: { open: boolean; onClose: () => void; onPick: (id: string) => void; exclude?: string[] }) {
@@ -47,6 +48,7 @@ export function ExercisePicker({ open, onClose, onPick, exclude = [] }: { open: 
               <ul class="list">
                 {list.map((e) => (
                   <li key={e.id}><button type="button" class="row" onClick={() => { close(); onPick(e.id); }}>
+                    <ExerciseDemo exerciseId={e.id} name={e.name} size="thumb" />
                     <span class="row-main"><span class="row-title">{e.name}</span><span class="row-sub">{e.equipment}</span></span>
                   </button></li>
                 ))}

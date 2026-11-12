@@ -15,3 +15,10 @@ npm ci
 npm test         # data, stats, rotation, merge and sync against a simulated GitHub
 npm run dev
 ```
+
+## Exercise demos
+
+Each starter exercise has a start and an end photo that alternate to show the movement, plus written steps.
+The photos and steps come from [free-exercise-db](https://github.com/yuhonas/free-exercise-db), which is
+released into the public domain (Unlicense). They live in `public/exercises/` and are cached on the phone
+the first time each one is shown. Exercises you create yourself have no demo.

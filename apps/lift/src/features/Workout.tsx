@@ -7,6 +7,7 @@ import { go } from '../router';
 import { Header, Icon, NumField, Sheet, clock, useLive, useTick } from '../ui/kit';
 import { addRest, startRest, stopRest, useRest } from '../ui/restTimer';
 import { ExercisePicker } from './ExercisePicker';
+import { ExerciseDemo, ExerciseGuide, hasDemo } from '../ui/ExerciseDemo';
 
 function ExerciseCard({ workout, exercise, sets, item }: { workout: WorkoutRow; exercise: Exercise; sets: SetEntry[]; item?: RoutineItem }) {
   const { repo, settings } = useApp();
@@ -16,6 +17,7 @@ function ExerciseCard({ workout, exercise, sets, item }: { workout: WorkoutRow; 
   const working = Math.max(0, ...sets.map((s) => s.weightKg));
   const showSuggestion = suggestion !== null && working < suggestion - 1e-6;
   const [menu, setMenu] = useState(false);
+  const [guide, setGuide] = useState(false);
 
   const tick = async (s: SetEntry) => {
     const done = !s.done;
@@ -26,6 +28,9 @@ function ExerciseCard({ workout, exercise, sets, item }: { workout: WorkoutRow; 
   return (
     <section class="exercise-card" aria-label={exercise.name}>
       <div class="exercise-head">
+        {hasDemo(exercise.id)
+          ? <button type="button" class="demo-btn" aria-label={`How to do ${exercise.name}`} onClick={() => setGuide(true)}><ExerciseDemo exerciseId={exercise.id} name={exercise.name} size="thumb" /></button>
+          : <ExerciseDemo exerciseId={exercise.id} name={exercise.name} size="thumb" />}
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3>{exercise.name}</h3>
           <p class="muted small" style={{ margin: '2px 0 0' }}>
@@ -59,6 +64,9 @@ function ExerciseCard({ workout, exercise, sets, item }: { workout: WorkoutRow; 
         </tbody>
       </table>
       <button type="button" class="link-btn" style={{ padding: '0 4px' }} onClick={() => void repo.addSet(workout.id, exercise.id)}><Icon name="plus" /> Add set</button>
+      <Sheet open={guide} title={exercise.name} onClose={() => setGuide(false)}>
+        <ExerciseGuide exerciseId={exercise.id} name={exercise.name} />
+      </Sheet>
       <Sheet open={menu} title={exercise.name} onClose={() => setMenu(false)}>
         <button type="button" class="btn danger block" onClick={() => { setMenu(false); void repo.removeExercise(workout.id, exercise.id); }}>Remove from this workout</button>
       </Sheet>

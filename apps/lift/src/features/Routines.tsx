@@ -5,6 +5,7 @@ import type { RoutineItem } from '../data/types';
 import { go } from '../router';
 import { Header, Icon, NumField, Sheet, useLive } from '../ui/kit';
 import { ExercisePicker } from './ExercisePicker';
+import { ExerciseDemo } from '../ui/ExerciseDemo';
 
 export function RoutineList() {
   const { repo } = useApp();
@@ -73,6 +74,7 @@ export function RoutineEditor({ id }: { id: string }) {
         {routine.items.map((it, i) => (
           <section key={`${it.exerciseId}-${i}`} class="card" aria-label={exercises.find((e) => e.id === it.exerciseId)?.name ?? 'Exercise'}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ marginRight: 8 }}><ExerciseDemo exerciseId={it.exerciseId} name={exercises.find((e) => e.id === it.exerciseId)?.name ?? 'Exercise'} size="thumb" /></span>
               <h2 style={{ flex: 1, margin: 0, fontSize: 18 }}>{exercises.find((e) => e.id === it.exerciseId)?.name ?? 'Exercise'}</h2>
               <button type="button" class="icon-btn" aria-label="Move up" onClick={() => move(i, -1)}><Icon name="up" /></button>
               <button type="button" class="icon-btn" aria-label="Move down" onClick={() => move(i, 1)}><Icon name="down" /></button>
