@@ -4,15 +4,18 @@ One home for all my helpers. Live at **https://duplic8e.github.io/H-U-B/**.
 
 | Path | Helper | Source |
 |---|---|---|
-| `/H-U-B/` | The Hub: tiles, and the one cloud connection | this repo |
-| `/H-U-B/ledger/` | Ledger: budget, investments, planning | [Duplic8e/Financial](https://github.com/Duplic8e/Financial) |
-| `/H-U-B/torque/` | Torque: car maintenance | [Duplic8e/Torque](https://github.com/Duplic8e/Torque) |
-| `/H-U-B/lift/` | Lift: gym workouts, records, progress | `apps/lift` in this repo |
-| `/H-U-B/french/` | French: vocabulary with spaced repetition | `apps/french` in this repo |
+| `/H-U-B/` | The Hub: tiles, and the one cloud connection | repo root |
+| `/H-U-B/ledger/` | Ledger: budget, investments, planning | `apps/ledger` |
+| `/H-U-B/torque/` | Torque: car maintenance | `apps/torque` |
+| `/H-U-B/lift/` | Lift: gym workouts, records, progress | `apps/lift` |
+| `/H-U-B/french/` | French: vocabulary with spaced repetition | `apps/french` |
 
-Ledger and Torque keep their own repos and are developed there. Lift lives in `apps/lift` here
-(`cd apps/lift && npm ci && npm test && npm run dev`). This repo builds all of them and serves
-them as one site (`.github/workflows/deploy.yml`).
+All the code lives in this repo, one folder per app under `apps/`. Each app is a separate project with
+its own `package.json`; work on one with `cd apps/<app> && npm ci && npm test && npm run dev`.
+`.github/workflows/deploy.yml` tests and builds all of them and serves them as one site.
+
+Ledger and Torque were brought in from their old repos (Duplic8e/Financial and Duplic8e/Torque) with
+their full history, so `git log apps/ledger` still shows every change.
 
 ## Your data lives online
 
@@ -54,16 +57,17 @@ helper: Ledger and Torque restore their own data from the cloud.
 
 One-time: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 
-The site rebuilds on every push to `main` here, once a day (to pick up changes merged into the helpers), and
-on demand from **Actions → Build and deploy the Hub → Run workflow**, which can also build a branch of a
-helper for testing.
+The site rebuilds on every push to `main`, after every app's unit tests pass, and on demand from
+**Actions → Build and deploy the Hub → Run workflow**. Ledger's full checks (lint, bundle guards and
+the Playwright browser suite) run in **Ledger checks** whenever `apps/ledger` changes.
 
 ## Adding a helper
 
-1. Make its Vite build read `BASE_PATH` for `base`, and show a link to `VITE_HUB_URL` when it is set.
+1. Create it under `apps/<id>`. Make its Vite build read `BASE_PATH` for `base`, and show a link to
+   `VITE_HUB_URL` when it is set.
 2. Have it read the `hub-cloud` localStorage entry (`{ owner, repo, token }`) and keep its data under
    `<id>/` in the data repo.
-3. Add it to `src/apps.ts` and add a build step to the workflow.
+3. Add it to `src/apps.ts`, and add a build step and a `cp` line to the workflow.
 
 ## Develop
 

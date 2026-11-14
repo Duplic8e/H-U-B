@@ -14,13 +14,12 @@ node scripts/generate-icons.mjs   # regenerate public/icons (needs Playwright)
 
 ## Deploy
 
-Pushing to `main` runs `.github/workflows/deploy.yml`: `npm ci`, `npm test`, `npm run build`, then publishes `dist` to GitHub Pages. Failing tests block the deploy.
-
-One-time repo setting: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+Torque lives in the Hub repo and deploys with it to `/H-U-B/torque/`: `.github/workflows/deploy.yml` at the
+repo root runs `npm test` and builds it with `BASE_PATH=/H-U-B/torque/`.
 
 ## Install on iPhone
 
-Open the Pages URL in Safari → Share → Add to Home Screen.
+Open the Hub in Safari → Share → Add to Home Screen, then open Torque from its tile.
 
 ## Cloud sync (optional)
 

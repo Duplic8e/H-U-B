@@ -6,7 +6,8 @@ no backend, no account, and no telemetry. Optional Google Drive sync moves a
 snapshot between your own devices using your own OAuth client, with the
 narrow `drive.file` scope.
 
-Live at https://miishat.github.io/ledger/
+Lives in the Hub repo under `apps/ledger` and is served at https://duplic8e.github.io/H-U-B/ledger/.
+Standalone, it builds under `/ledger/`; the Hub build passes its own `BASE_PATH`.
 
 ## Running it
 
@@ -26,7 +27,8 @@ npm run verify
 
 That runs, in order: eslint, the unit suite (vitest), a production build, and
 three guard scripts, then the end-to-end suite (Playwright, five viewport
-projects). CI runs exactly this on every push and pull request. All of it must
+projects). The Hub repo's **Ledger checks** workflow runs exactly this whenever
+`apps/ledger` changes. All of it must
 be green before a change lands.
 
 Individual pieces:

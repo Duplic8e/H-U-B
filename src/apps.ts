@@ -1,7 +1,6 @@
 /**
- * Every helper the Hub serves. To add one: add an entry here, then add its build to
- * .github/workflows/deploy.yml (the same three lines as the others). Helpers built in
- * this repo live under apps/<id>. The app is served at
+ * Every helper the Hub serves. Each lives in this repo under apps/<id>. To add one: add an
+ * entry here, then add its build to .github/workflows/deploy.yml. The app is served at
  * `<hub>/<id>/`, and keeps its cloud data under `<id>/` in the data repo.
  */
 export interface HubApp {

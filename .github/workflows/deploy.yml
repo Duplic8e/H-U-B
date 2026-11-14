@@ -1,26 +1,18 @@
 name: Build and deploy the Hub
 
-# Builds the Hub home page plus every helper from its own repo, and serves them as one site:
-#   /H-U-B/          the Hub
-#   /H-U-B/ledger/   Ledger   (Duplic8e/Financial)
-#   /H-U-B/torque/   Torque   (Duplic8e/Torque)
-#   /H-U-B/lift/     Lift     (apps/lift in this repo)
-#   /H-U-B/french/   French   (apps/french in this repo)
+# Every app lives in this repo and is served as one site:
+#   /H-U-B/          the Hub        (repo root)
+#   /H-U-B/ledger/   Ledger         (apps/ledger)
+#   /H-U-B/torque/   Torque         (apps/torque)
+#   /H-U-B/lift/     Lift           (apps/lift)
+#   /H-U-B/french/   French         (apps/french)
+# Each app's unit tests run before anything deploys. Ledger's full checks
+# (lint, browser tests) run separately in ledger-checks.yml.
 on:
   push:
     branches: [main]
-  # Actions tab → "Build and deploy the Hub" → Run workflow. The refs let you try a branch of a helper.
+  # Actions tab → "Build and deploy the Hub" → Run workflow.
   workflow_dispatch:
-    inputs:
-      ledger_ref:
-        description: Branch, tag or commit of Duplic8e/Financial
-        default: main
-      torque_ref:
-        description: Branch, tag or commit of Duplic8e/Torque
-        default: main
-  # Picks up changes merged into the helpers' repos without anyone having to remember.
-  schedule:
-    - cron: '23 9 * * *'
 
 permissions:
   contents: read
@@ -40,28 +32,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check out Ledger
-        uses: actions/checkout@v4
-        with:
-          repository: Duplic8e/Financial
-          ref: ${{ inputs.ledger_ref || 'main' }}
-          path: _apps/ledger
-
-      - name: Check out Torque
-        uses: actions/checkout@v4
-        with:
-          repository: Duplic8e/Torque
-          ref: ${{ inputs.torque_ref || 'main' }}
-          path: _apps/torque
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: |
             package-lock.json
-            _apps/ledger/package-lock.json
-            _apps/torque/package-lock.json
+            apps/ledger/package-lock.json
+            apps/torque/package-lock.json
             apps/lift/package-lock.json
             apps/french/package-lock.json
 
@@ -70,17 +48,16 @@ jobs:
         env:
           BASE_PATH: ${{ env.SITE_BASE }}
 
-      # Each helper's own repo runs its full test suite on every push; here we only build.
       - name: Ledger
-        working-directory: _apps/ledger
-        run: npm ci && npm run build
+        working-directory: apps/ledger
+        run: npm ci && npm test -- --run && npm run build
         env:
           BASE_PATH: ${{ env.SITE_BASE }}ledger/
           VITE_HUB_URL: ${{ env.SITE_BASE }}
 
       - name: Torque
-        working-directory: _apps/torque
-        run: npm ci && npm run build
+        working-directory: apps/torque
+        run: npm ci && npm test && npm run build
         env:
           BASE_PATH: ${{ env.SITE_BASE }}torque/
           VITE_HUB_URL: ${{ env.SITE_BASE }}
@@ -103,8 +80,8 @@ jobs:
         run: |
           mkdir -p site
           cp -R dist/. site/
-          cp -R _apps/ledger/dist site/ledger
-          cp -R _apps/torque/dist site/torque
+          cp -R apps/ledger/dist site/ledger
+          cp -R apps/torque/dist site/torque
           cp -R apps/lift/dist site/lift
           cp -R apps/french/dist site/french
           touch site/.nojekyll
