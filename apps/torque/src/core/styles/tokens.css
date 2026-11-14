@@ -1,0 +1,98 @@
+/* Design tokens: "Night cluster" (see docs/ui-concept.md). Dark only.
+   A restyle should only need to edit this file and the component CSS. */
+:root {
+  color-scheme: dark;
+
+  /* palette */
+  --cabin: #0e1317; /* app background */
+  --dash: #151c22; /* grouped surfaces, sheets */
+  --dash-raised: #1c252d; /* pressed rows, selected segments, inputs */
+  --bezel: #26313a; /* hairlines, tracks */
+  --chrome: #c5ced6; /* secondary text, icons */
+  --gauge-white: #eef2f5; /* primary text, numerals */
+  --soul-red: #d21f3c; /* the needle and the start button only */
+
+  /* roles */
+  --color-bg: var(--cabin);
+  --color-surface: var(--dash);
+  --color-surface-raised: var(--dash-raised);
+  --color-border: var(--bezel);
+  --color-text: var(--gauge-white);
+  --color-text-muted: #9aa6b1;
+  --color-chrome: var(--chrome);
+  --color-accent: var(--soul-red);
+  --color-accent-contrast: #ffffff;
+  --color-primary-fill: var(--gauge-white); /* primary buttons: white on cabin */
+  --color-primary-ink: var(--cabin);
+
+  /* status lamps, kept apart from Soul Red so a warning never reads as decoration */
+  --color-ok: #3dd68c;
+  --color-soon: #f5a524;
+  --color-overdue: #f25c5c;
+  --color-inspect: #8b97a3;
+  --color-ok-ink: var(--color-ok);
+  --color-soon-ink: var(--color-soon);
+  --color-overdue-ink: #ff7a7a;
+  --color-inspect-ink: #a9b4be;
+
+  /* categorical chart series: fixed order, never cycled (validated dark steps) */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+
+  /* spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* shape: hierarchy, not one radius for everything */
+  --radius-group: 18px; /* grouped lists and panels */
+  --radius-card: var(--radius-group);
+  --radius-control: 12px; /* inputs, segmented controls */
+  --radius-chip: 999px;
+  --hairline: 1px solid var(--bezel);
+  --border-thin: var(--hairline);
+  --bezel-highlight: inset 0 1px 0 rgb(255 255 255 / 0.05); /* satin edge on raised surfaces */
+
+  /* type: Barlow for text, Barlow Condensed for readings */
+  --font-sans: 'Barlow', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-reading: 'Barlow Condensed', 'Barlow', -apple-system, system-ui, sans-serif;
+  --font-size-caption: 13px;
+  --font-size-small: 15px;
+  --font-size-body: 17px;
+  --font-size-row: 18px;
+  --font-size-title: 28px;
+  --font-size-odometer: 56px;
+
+  /* layout */
+  --tap-min: 44px;
+  --tabbar-height: 58px;
+  --header-height: 52px;
+
+  /* motion */
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --motion-sweep: 900ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* safe areas */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-sweep: 0ms;
+  }
+}

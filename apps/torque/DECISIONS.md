@@ -1,0 +1,132 @@
+# Decisions
+
+Where the spec was ambiguous, the simplest option that keeps data safe was chosen.
+
+## Phase 1
+
+- **Router:** a ~20-line hash router in `src/router.ts` instead of a library; routes are a closed union type.
+- **Vite `base`:** read from the `BASE_PATH` env var (set by the workflow from the repo name), defaulting to `/` locally, so renaming the repo needs no code change.
+- **Service worker update:** `registerType: 'prompt'` so the user taps to refresh instead of the app reloading mid-entry.
+- **Icons:** generated from inline SVG by `scripts/generate-icons.mjs` and committed, so CI does not need a browser.
+- **FAB and bottom sheet:** deferred to Phase 3, when there are forms to open. Phase 1 ships only the tab bar, update toast and install hint.
+- **Pinned toolchain:** versions are whatever `npm install` resolved; `package-lock.json` is committed.
+
+## Phase 2
+
+- **Sync fields on every entity:** `updatedAt` everywhere and optional `deletedAt` (tombstone) on vehicles, items, records, readings and attachments, added now so Phase 4 sync needs no schema change. `Settings` has `updatedAt` only.
+- **Interfaces vs Zod:** types are hand-written in `data/types.ts` (as in the spec); `data/schema.ts` holds the Dexie class and Zod schemas typed `z.ZodType<T>` so the two cannot drift.
+- **Baselines live on the item** (`ServiceItem.baseline`), not as fake service records. Onboarding choices map to: date + mileage → `source: 'entered'`; "Never, car is new" → `source: 'purchase'`; "Not sure" → no baseline (due now, amber, `unknownBaseline`). `firstDueMiles` (coolant at 120,000 mi) applies only to a `'purchase'` baseline.
+- **Service odometers are not copied into the readings table.** `computeDue` merges each record's odometer into the mileage points itself, so editing or deleting a record updates the estimate with no extra bookkeeping. `OdometerReading.source: 'service'` is kept in the type for compatibility but unused.
+- **"Due soon" uses days as well as miles.** Spec rule 6 says `milesLeft <= dueSoonMiles` or `daysLeft <= dueSoonDays`, but acceptance test 2 (600 mi at 50 mi/day is Due soon) needs miles converted to days at the current pace. The engine uses `min(daysLeft, milesLeft / rate)` against the day threshold. At the default 33 mi/day this means about 990 mi.
+- **Per-field severe fallback:** a severe interval applies only to the field that defines one (e.g. engine air filter has severe miles but no months, so months stays unset).
+- **Items with only one axis** (brake fluid months-only, belts miles-only) track that axis alone.
+- **Inspect items** always report status `inspect` but still carry miles/days left, so the UI can show "Check" with a date. They do not affect the health score.
+- **Pace calculation:** correction readings are excluded from the regression (they fix typos, not driving). If the regression slope is zero or negative, the overall average is used, then 33 mi/day. Readings dated after `today` are ignored.
+- **Odometer check:** compares against the latest reading or record on or before the new entry's date, so back-dating a consistent entry is allowed. `repo.addReading` and `repo.addRecord` throw `OdometerRegressionError` unless `allowCorrection` is set; the UI maps that to the "Fix / Save anyway" warning.
+- **Single vehicle:** `getVehicle()` returns the first non-deleted vehicle; the schema still carries `vehicleId` everywhere for later.
+
+## Phase 3
+
+- **State:** one Dexie `liveQuery` loads the raw vehicle, items, records, readings and settings; the due engine runs on each render with today's date, so statuses stay correct across midnight without a refresh. Screens read it through `useAppData()` and open sheets through `useUi()`.
+- **"Add note"** (FAB menu) opens the log sheet in note mode: a service record with no `itemKeys` and the note text.
+- **Onboarding:** the cloud-sync step and "Restore from GitHub" are shown as coming soon until Phase 4. "Never, car is new" asks for purchase date and odometer once, on the same step, defaulting to today and the current reading. When the purchase date is in the past, a purchase reading is also stored so the pace estimate has two points.
+- **"Review your schedule" prompt:** persisted as `Settings.scheduleReviewed`, not in localStorage, so it syncs and survives a reinstall.
+- **Schedule editing:** done in the item sheet (intervals, severe intervals, track on/off) plus "Add custom item", whose clock starts today at the estimated odometer. Disabled items stay listed under "Disabled" so they can be re-enabled.
+- **Odometer warning:** `OdometerRegressionError` from the repo drives the "Fix / Save anyway (correction)" prompt in both the odometer and log sheets. Nothing is written until the user confirms.
+- **Settings** has only driving style and due-soon thresholds for now; backup, sync and calendar settings arrive in later phases.
+- **Dashboard quick actions** omit "Export to Calendar" until Phase 5.
+- **Browser smoke test:** `tests/e2e/smoke.mjs` drives onboarding, logging an oil change, the odometer warning, reload persistence and the 16 px input rule. It uses the preinstalled Playwright and is run by hand, not in CI.
+
+## Phase 4a
+
+- **Backup file** is `{ app, schemaVersion, exportedAt, vehicles, items, records, odometer, settings, attachments }`. It includes tombstoned rows so a restore or merge keeps deletions; counts shown to the user cover live rows only. Attachments carry their full metadata plus `base64`. Nothing secret can be in it: there is no token or sync config in the database yet, and Phase 4b keeps those out of the export tables.
+- **Import** refuses other apps, newer schema versions and files that fail Zod validation, with a plain-language reason. Merge is by id, newest `updatedAt` wins, ties keep the local row (the same function sync will use).
+- **Restore from the welcome screen:** after "Reset all data" the app returns to onboarding, so the welcome screen also offers "Restore from backup file". The same file picker is in Settings.
+- **Backup nudge:** the dashboard banner appears after 30 days or 5 new records since the last export (counted from when the car was added if you never exported). `lastBackupAt` is only set when the share sheet completes or the download starts, not when you cancel. Cloud sync (4b) will replace this nudge with the 24-hour sync-failure banner.
+- **iOS share sheet:** `navigator.share` needs a user gesture. Export reads the database first, then shares; if iOS rejects the late call the code falls back to a download link. Worth checking on the phone.
+- **Editing a record** skips the lower-odometer check, since the record may legitimately be corrected to an earlier value. Adding records and readings still checks.
+- **Cost per mile** uses lifetime spend over the span between the lowest and highest odometer values seen (readings, records, purchase odometer), not the extrapolated estimate, so the number does not drift day to day. Correction readings are ignored.
+- **Cost categories:** Ignition and Inspection services roll into "Other"; a visit's cost is split by per-item costs when present, otherwise evenly across its services. Per-item cost entry is not in the log form yet (the data model supports it).
+- **Charts** use the validated categorical slots in fixed order as `--series-*` tokens (light and dark steps). The category legend carries every value and percentage, and the monthly chart has a "View as table" fallback, so colour is never the only signal. Tapping a month shows its exact value above the chart.
+- **Receipt photos** are resized to 1600 px and re-encoded as JPEG 0.7 before storing; removed photos are tombstoned like everything else.
+- **Storage:** `navigator.storage.persist()` is requested on launch and the result is shown in Settings > About.
+- **Settings** gained Backup, About and Danger zone (type RESET). Calendar and notification settings arrive in Phase 5, sync in 4b.
+
+## Phase 4b
+
+- **Device-local store:** Dexie v2 adds a `kv` table holding the sync config (including the token), sync state and the list of uploaded photos. Backups and sync payloads are built from explicit table lists that never include it; `resetAll` clears it, and the Reset flow disconnects sync first so the running manager cannot write its state back. A test asserts the token is absent from the cloud data, a backup export, the manager status, request URLs and every console method.
+- **Cloud file:** `torque/data.json` holds vehicles, items, records, readings, settings and photo *metadata*; photo bytes are separate `torque/attachments/<id>.jpg` files, uploaded once each and before the data file points at them. Remote photos download when first viewed and are cached locally; a backup export first downloads any photos the device is missing.
+- **Reading safely:** the provider reads the file's sha from the directory listing first, then the content with the raw media type (so files over 1 MB load). If the file changes in between, the later write is rejected with 409 and retried, so a newer cloud version is never silently overwritten. Both 409 and 422 count as "changed under us"; up to 3 retries, then the failure is reported and the changes stay pending.
+- **Merge:** by id, newest `updatedAt` wins, ties keep the local row, tombstones win like any other row, so deletions stay deleted. Only winning remote rows are written locally and nothing is pushed when the merged result equals the cloud copy, so an idle sync makes no commit.
+- **Triggers:** on launch, when the app returns to the foreground, when the network returns, 5 seconds after the last change (the timer restarts on each change), and a retry a minute after a network or server failure. Auth and not-found errors wait for the user. Calls made during a sync fold into one follow-up run.
+- **Pending count** counts transactions, not rows, so one user action is one change. It is persisted, so changes made offline survive an app restart and push on the next launch.
+- **Status wording:** "Synced 2 min ago", "3 changes pending", "Offline: 3 changes pending", "Sync failed: token expired or not allowed" (with a Fix hint), and the dashboard banner appears only after 24 hours of continuous failure. With sync connected, the 30-day/5-record backup nudge is hidden.
+- **Private repos only:** connecting to a public repository is refused, because the data is personal. This is an addition to the spec.
+- **Existing data:** onboarding refuses a repo that already holds Torque data (use Restore from GitHub instead). From Settings, connecting to such a repo asks before merging.
+- **Restore from GitHub** is on the welcome screen next to "Restore from backup file". The token field is a password input and is cleared from the form after connecting.
+- **Replace all** (backup import) with sync on behaves as a merge with the cloud on the next sync, because rows missing locally come back from the cloud. Use Disconnect first for a true replace.
+- **Photos in the sync path** are read with `blob.arrayBuffer()` rather than `FileReader`, which also fixes a latent issue in backups.
+- **Browser tests:** `tests/e2e/sync.mjs` runs connect (wrong token, then right token), debounced push, offline queue and flush, reset, restore with a photo, tombstones and the token checks against a simulated GitHub via request interception.
+
+## Phase 5
+
+- **Calendar export dropped** at the owner's request: no .ics, no calendar settings, no dashboard button or post-save toast action. Reminders are the in-app status plus the icon badge.
+- **App badge:** shows overdue plus due-soon items. Turning it on asks for notification permission (required for badges on iOS 16.4+ installed apps); if permission is denied the switch turns itself back off and says why. A web app cannot update its badge in the background without a server, so the count refreshes whenever Torque is opened or returns to the foreground. Stored as `Settings.badgeEnabled`.
+- **Stale-day fix:** statuses used to be computed once from the data and not recomputed if the app stayed open past midnight. The app now recomputes when it returns to the foreground and once a minute, so an app left open for days never shows old due dates. A browser test moves the clock two years ahead without a reload.
+- **Per-service costs:** with two or more services selected, a switch lets you enter a cost for each. The visit total is their sum, so History, Costs and the category chart agree. With the switch off, the single total field is used (and split evenly across services in the category chart, as before).
+- **Vehicle details** (nickname, year, VIN, plate, oil spec, tire size, purchase date and odometer, units) are editable from Settings. Changing units only changes labels; numbers are not converted, and the sheet says so.
+- **Accessibility audit** (`tests/e2e/a11y.mjs`, axe-core on every screen and sheet in light and dark, plus tap-target and input-size checks) found and fixed: progress bars without names, 2:1 contrast on the amber "Due soon" text in light mode (text now uses darker `--color-*-ink` tokens; bars and dots keep the base status colours), an odometer button whose name did not contain its visible text, no level-one heading, the + menu outside any landmark, narrow segmented buttons, sheets that did not trap Tab, and focus not returning to the opener on close. Status is never colour alone: chips always carry text.
+- **Focus return** reads the previously focused element during the sheet's first render, before any autofocus inside the sheet can change it.
+- **Reduced motion:** all animation and transition durations come from tokens that become 0 under `prefers-reduced-motion`; a browser test checks the computed durations.
+- **Toggles respond immediately** (local state first, database after) so a switch never snaps back while a write is in flight.
+- **PWA checks** (`tests/e2e/pwa.mjs`): Chromium's installability check passes with no errors, the manifest and icons are complete, pinch zoom is allowed, the app opens and records a service with the network off and survives a cold start, and a simulated redeploy shows "Update available" and switches to the new build when tapped. Lighthouse's separate PWA category no longer exists, so the browser's own installability check is used instead.
+- **Service worker registration bug (found by the PWA check, fixed):** registration happens inside the update-toast component, which since Phase 3 rendered only in the main app shell. A first-time visitor sat on the splash and onboarding screens with no service worker, so the app was neither installable nor offline-capable until after onboarding and a reload. The toast now renders at the root in `main.tsx`, so the worker registers on every first load. `tests/e2e/pwa.mjs` covers this by opening the app with the network off and adding a record before any reload.
+- **Not verifiable here:** behaviour on a real iPhone (install, safe areas, share sheet, badge permission, input zoom) and sync against the real GitHub API.
+
+## UI overhaul: "Night cluster"
+
+- **Concept first:** `docs/ui-concept.md` holds the palette, type, layout wireframe, principles, and a table of the generic defaults the first draft fell into and how each was revised. It follows Anthropic's frontend-design skill guidance, read from its public repo because the plugin could not be installed in this environment.
+- **Dark only.** The owner asked to keep dark mode, so the light theme that followed the system setting is gone. One palette means one set of contrast checks, and the app looks the same in a dark garage at night or in sunlight.
+- **Type:** Barlow for text and Barlow Condensed (tabular figures) for readings: odometer, costs, dates, intervals. Both are bundled as Latin-only woff2 (about 110 KB total) and precached, so the app looks the same offline. Body text went from 16 to 17 px.
+- **Soul Red is reserved** for the needle and the start (+) button. Primary buttons are now white on cabin, so red never competes with the status lamps.
+- **Status lamps:** chips are a glowing dot plus text ("Fine", "Due soon", "Overdue", "Check"). "OK" became "Fine" to match the dashboard's lamp row.
+- **Grouped lists replace per-row cards** in Up next, Schedule and History; panels stay for settings and forms.
+- **Segmented progress bars** (ten segments, like the fuel gauge) replace the thin bars. The `.gauge-fill` element is unchanged underneath; the segments are a CSS mask.
+- **The cluster** (`ClusterGauge`) shows the health score as a dimmed arc in the worst item's status colour, with tick marks and a Soul Red needle that sweeps to the score on launch. The odometer sits in the hub and stays tappable. The welcome screen reuses the dial with a neutral arc, since there is no status yet.
+- **Dashboard title** is the car's nickname; the trim line and sync status sit under it.
+- **Fixes found during the screenshot review:** tabs now open scrolled to the top (they used to keep the previous tab's scroll position); toasts sit above the start button instead of over it; the spend chart opens on the latest month with spend; interval copy reads "Every 7,500 mi or 12 months" instead of "7,500 mi / None".
+- **App icon** redrawn to match: chrome dial, cabin background, Soul Red needle.
+
+## Mazda Canada schedule (seed version 2)
+
+- **Canada follows Mazda's Schedule 2**, the harder-use schedule, so the seed now uses those intervals in km and has no separate severe values. The driving-style switch only affects items where the owner sets severe intervals.
+- **Confirmed from Mazda Canada's CX-5 maintenance sheet and the 2023 Canadian owner's manual:**
+  - Oil and filter, tire rotation and fluid-level checks: every 8,000 km or 6 months.
+  - Brake inspection: every 24,000 km or 12 months.
+  - Cabin air filter: every 32,000 km or 24 months.
+  - Drive belts: inspect every 48,000 km or 36 months.
+  - Engine air filter: replace every 56,000 km.
+  - 2.5T spark plugs: every 64,000 km.
+  - Coolant: first at 200,000 km or 10 years, then every 100,000 km or 5 years. The 2022 sheet says 192,000/96,000; the 2023 manual's figure is used since it matches the model year.
+- **Not confirmed:** brake fluid replacement for Canada. It is set to 24 months, the more conservative of the figures found, and its note says to check the owner's manual. Battery, wipers and tread checks are not on Mazda's schedule and are kept as sensible extras.
+- **Sources** were read through search results, because `www.mazda.ca` and `www.mazdausa.com` are blocked by this environment's network policy. Allowing those hosts would let the official PDFs be read directly.
+- **New item:** "Fluid level check" (inspect).
+- **Engine:** `firstDueMonths` joins `firstDueMiles`, so coolant on a new car is first due at 10 years, then every 5. Both apply only to a "never, car is new" starting point.
+- **Units:** the seed is defined in km. A vehicle set to miles gets the same intervals converted and rounded to the nearest 500 mi (8,000 km becomes 5,000 mi). Onboarding now defaults to kilometres.
+- **Existing installs upgrade once** (`Settings.seedVersion`). Built-in items still at the old defaults move to the Canadian values; items the owner edited are left alone and named in a toast; custom items are never touched. Added items get a fixed id (`<vehicleId>:<key>`) so two synced devices upgrading separately produce the same row. The "Review your schedule" prompt returns after the upgrade.
+- **Changing units now converts the data:** odometer readings, service odometers, starting points, purchase odometer, intervals (to a tidy 500) and the due-soon distance (to 100). It used to relabel only, which would have left an install set up in miles showing wrong numbers in km. The vehicle sheet asks before converting.
+
+## UI improvements after the redesign
+
+- **Item sheet:** one segmented bar per limit ("6,200 of 8,000 km", "2 of 6 months"), so it is clear which limit makes the item due; Mark done and Edit share the row at full width.
+- **Log service:** service chips that are overdue or due soon come first, with their status lamp; screen readers hear "overdue" or "due soon".
+- **Odometer sheet:** shows the last reading and today's estimate under the input.
+- **History:** a month header shows the month's total when it has more than one paid visit.
+- **Schedule:** rows show the projected date, like the dashboard.
+
+## Units fixes, winter tires and warranty
+
+- **Default pace follows units.** Before there are two readings, the estimate assumed 33 per day whatever the units, which is 12,000 miles but only 12,000 km a year. Cars in km now assume 44 km/day (about 16,000 km a year).
+- **Labels:** Settings says "Distance (km)" for the due-soon distance; Costs says "Maintenance cost per km", since fuel is not tracked.
+- **Seasonal tire swap** (opt-in under Settings, "Winter tires"). It is a service item with a `seasonal` config instead of an interval: winter tires on by one date, summer tires on by another (defaults Nov 1 and May 1; the choices include Quebec's Dec 1). It is named for the set going on next ("Winter tires on") and uses the due-soon days. A logged swap decides which set went on: the one whose date is nearer the swap date. Without a logged swap, the set chosen in Settings is assumed to have gone on at its own date: the most recent one, or the upcoming one if it is within 60 days (put on early). So summers still on in late November read as overdue, not due next year. The item has a fixed id (`<vehicleId>:tire_swap`) so two synced devices agree; turning it off disables it and keeps its history.
+- **Warranty card** on the dashboard: Mazda Canada's "Mazda Unlimited" terms, all unlimited km: comprehensive 3 years, roadside assistance 3 years, powertrain 5 years, anti-perforation 7 years, counted from the delivery date (the vehicle's purchase date, now labelled "Delivery date (warranty start)"). A coverage within 90 days of ending gets a callout to have problems checked while covered. The card asks for the delivery date if it is missing and disappears once every coverage has ended. Terms came from search results (mazda.ca and Mazda Canada's 2014 announcement), as mazda.ca is blocked here; the card points to the warranty booklet.
