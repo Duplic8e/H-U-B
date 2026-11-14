@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Theme 6 &mdash; floral mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Lato:wght@300;400;700&family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #16130f; color: #e7e0d6;
+    font-family: 'Inter', sans-serif; padding: 28px 20px 80px;
+  }
+  .page-head { max-width: 1180px; margin: 0 auto 26px; }
+  .page-head h1 { font-family: 'Outfit', sans-serif; font-size: 22px; margin: 0 0 6px; font-weight: 700; letter-spacing: -0.01em; }
+  .page-head p { margin: 0; font-size: 13px; color: #9c9287; line-height: 1.6; max-width: 96ch; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #c9bfb2; }
+
+  .option { max-width: 1180px; margin: 0 auto 46px; }
+  .option-label { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 10px; padding: 0 2px; }
+  .option-label .tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: #16130f; background: #b9ae9e; padding: 3px 8px; border-radius: 4px;
+  }
+  .option-label h2 { font-family: 'Outfit', sans-serif; font-size: 17px; margin: 0; font-weight: 600; }
+  .option-label .note { font-size: 12.5px; color: #9c9287; }
+
+  .canvas {
+    position: relative; border-radius: 14px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.09);
+    background: var(--bg-primary); color: var(--text-primary);
+    font-family: var(--font-body); isolation: isolate;
+  }
+  .deco { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .deco svg { position: absolute; display: block; }
+  .deco .wash { position: absolute; inset: 0; }
+  .app { position: relative; z-index: 1; display: flex; min-height: 470px; }
+
+  .side {
+    width: 178px; flex: 0 0 178px; padding: 16px 12px;
+    border-right: 1px solid var(--border); background: var(--side-bg);
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; margin: 2px 4px 18px; }
+  .brand .mark {
+    width: 26px; height: 26px; border-radius: 8px; flex: none;
+    background: var(--mark-bg); border: 1px solid var(--accent);
+    display: grid; place-items: center; color: var(--accent);
+    font-family: var(--font-display); font-weight: 700; font-size: 13px;
+    box-shadow: var(--mark-shadow);
+  }
+  .brand .name { font-family: var(--font-display); font-weight: 600; font-size: 14.5px; letter-spacing: -0.01em; }
+  .nav { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 8px; font-size: 12.5px; color: var(--text-secondary); }
+  .nav.on { background: var(--nav-on-bg); color: var(--nav-on-fg); font-weight: 600; box-shadow: var(--nav-on-shadow); }
+  .nav .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .55; }
+  .nav.on .dot { opacity: 1; background: var(--accent); }
+  .side .spacer { flex: 1; }
+  .side .foot { font-size: 10.5px; color: var(--text-secondary); padding: 0 6px; opacity: .85; }
+
+  .main { flex: 1; padding: 18px 22px 24px; min-width: 0; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+  .topbar h3 { font-family: var(--font-display); font-size: 19px; margin: 0 0 2px; font-weight: 700; letter-spacing: -0.015em; }
+  .topbar .sub { font-size: 11.5px; color: var(--text-secondary); }
+  .btn {
+    font-size: 12px; font-weight: 600; padding: 7px 13px; border-radius: 8px;
+    background: var(--btn-bg); color: var(--btn-fg); border: 1px solid var(--btn-border); box-shadow: var(--btn-shadow);
+  }
+  .btn.ghost { background: var(--card-bg); color: var(--text-primary); border-color: var(--border-strong); box-shadow: none; font-weight: 500; }
+
+  .grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 13px; }
+  .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-bottom: 13px; }
+
+  .card {
+    position: relative; border-radius: var(--card-radius);
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    box-shadow: var(--card-shadow); padding: 14px 15px; overflow: hidden;
+  }
+  .card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: var(--card-inset); }
+  .card .k { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; }
+  .card .v { font-family: var(--font-display); font-size: 21px; font-weight: 700; margin-top: 5px; letter-spacing: -0.02em; }
+  .card .d { font-size: 11.5px; margin-top: 3px; color: var(--pos); font-weight: 600; }
+  .card .d.neg { color: var(--neg); }
+
+  .hero { padding: 17px 18px 8px; }
+  .hero .k { font-size: 11px; }
+  .hero .v { font-size: 36px; margin-top: 6px; }
+  .hero .meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; }
+  .pill { font-size: 11px; font-weight: 700; padding: 2.5px 8px; border-radius: 999px; background: var(--pill-bg); color: var(--pos); border: 1px solid var(--pill-border); }
+  .spark { display: block; width: 100%; height: 92px; margin-top: 10px; }
+
+  /* the card's own floral watermark, clipped to the card */
+  .card .leafmark { position: absolute; right: -18px; bottom: -26px; opacity: var(--leafmark-op, 0); color: var(--accent); }
+
+  .list .item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .list .item:last-child { border-bottom: 0; }
+  .list .ico {
+    width: 27px; height: 27px; border-radius: 8px; flex: none;
+    background: var(--chip-bg); border: 1px solid var(--chip-border);
+    display: grid; place-items: center; font-size: 11px; color: var(--accent); font-weight: 700; font-family: var(--font-display);
+  }
+  .list .nm { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 500; }
+  .list .nm small { display: block; font-size: 10.5px; color: var(--text-secondary); font-weight: 400; margin-top: 1px; }
+  .list .amt { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .bars { margin-top: 10px; display: flex; flex-direction: column; gap: 9px; }
+  .bar-row { font-size: 11.5px; }
+  .bar-row .lab { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-secondary); }
+  .bar-row .lab b { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .track { height: 7px; border-radius: 999px; background: var(--track); overflow: hidden; box-shadow: var(--track-inset); }
+  .fill { height: 100%; border-radius: 999px; }
+
+  .tokens { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding: 0 2px; }
+  .tok {
+    display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; color: #b3a99c; background: #211d18; border: 1px solid #322c25; border-radius: 6px; padding: 4px 8px;
+  }
+  .tok i { width: 11px; height: 11px; border-radius: 3px; display: block; border: 1px solid rgba(255,255,255,.16); }
+
+  /* =====================================================================
+     D — HERBARIUM PRESS   parchment + pressed specimens + mulberry ink
+     ===================================================================== */
+  .t-herb {
+    --bg-primary: #FAF4E8;
+    --side-bg: linear-gradient(180deg, rgba(245,236,220,.60) 0%, rgba(240,229,208,.70) 100%);
+    --text-primary: #2B2419;
+    --text-secondary: #7A6D57;
+    --accent: #7D4A6B;
+    --border: #E8DCC6;
+    --border-strong: #AE9E82;
+    --pos: #4E6B3A;
+    --neg: #B03B2E;
+    --font-body: 'Lato', sans-serif;
+    --font-display: 'Playfair Display', serif;
+    --card-bg: linear-gradient(168deg, #FFFDF8 0%, #FBF4E6 100%);
+    --card-border: #EBE0CB;
+    --card-radius: 12px;
+    --card-shadow: 0 1px 2px rgba(80,62,30,.07), 0 10px 26px -12px rgba(80,62,30,.30);
+    --card-inset: inset 0 1px 0 rgba(255,255,255,.92);
+    --mark-bg: #F2E6EE; --mark-shadow: 0 2px 6px -2px rgba(125,74,107,.42);
+    --nav-on-bg: linear-gradient(180deg,#FFFFFF,#FCF5E9); --nav-on-fg: #2B2419;
+    --nav-on-shadow: 0 1px 2px rgba(80,62,30,.11), inset 0 1px 0 #fff;
+    --btn-bg: linear-gradient(180deg,#8C5478,#6E3F5C); --btn-fg: #FBF3F8; --btn-border: #5E3450;
+    --btn-shadow: 0 2px 6px -1px rgba(95,55,82,.42), inset 0 1px 0 rgba(255,255,255,.24);
+    --pill-bg: #EDF1E5; --pill-border: #D3DFC2;
+    --chip-bg: #F4E9F0; --chip-border: #E7D5E1;
+    --track: #EDE3CF; --track-inset: inset 0 1px 2px rgba(80,62,30,.13);
+    --c1: #7D4A6B; --c2: #5C7048; --c3: #B0843A; --c4: #8A6A55;
+    --leafmark-op: .05;
+  }
+  .t-herb .wash {
+    background:
+      radial-gradient(880px 420px at 6% -10%, rgba(255,244,220,.9), transparent 70%),
+      radial-gradient(680px 460px at 100% 108%, rgba(226,208,178,.42), transparent 72%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='150' height='150' filter='url(%23n)' opacity='.20'/%3E%3C/svg%3E");
+  }
+
+  /* =====================================================================
+     E — MORRIS WEAVE   wallpaper repeat + old gold
+     ===================================================================== */
+  .t-morris {
+    --bg-primary: #F6EEDD;
+    --side-bg: linear-gradient(180deg, rgba(240,230,210,.58) 0%, rgba(233,220,195,.68) 100%);
+    --text-primary: #241E13;
+    --text-secondary: #756848;
+    --accent: #8A6110;
+    --border: #E3D6BC;
+    --border-strong: #AB9871;
+    --pos: #46685A;
+    --neg: #A9402C;
+    --font-body: 'Inter', sans-serif;
+    --font-display: 'Outfit', sans-serif;
+    --card-bg: linear-gradient(170deg, #FFFCF3 0%, #F9F1DF 100%);
+    --card-border: #E7DBC0;
+    --card-radius: 10px;
+    --card-shadow: 0 1px 2px rgba(70,54,24,.08), 0 14px 30px -16px rgba(70,54,24,.34);
+    --card-inset: inset 0 1px 0 rgba(255,255,255,.94);
+    --mark-bg: #F2E5C6; --mark-shadow: 0 2px 6px -2px rgba(138,97,16,.42);
+    --nav-on-bg: linear-gradient(180deg,#FFFDF6,#F8F0DC); --nav-on-fg: #241E13;
+    --nav-on-shadow: 0 1px 2px rgba(70,54,24,.12), inset 0 1px 0 #fff;
+    --btn-bg: linear-gradient(180deg,#4F7466,#3A5A4E); --btn-fg: #F3F8F5; --btn-border: #2F4A40;
+    --btn-shadow: 0 2px 6px -1px rgba(50,80,68,.40), inset 0 1px 0 rgba(255,255,255,.22);
+    --pill-bg: #E6EFEA; --pill-border: #CBDDD3;
+    --chip-bg: #F5E9CD; --chip-border: #E8D8B2;
+    --track: #EADEC4; --track-inset: inset 0 1px 2px rgba(70,54,24,.14);
+    --c1: #8A6110; --c2: #46685A; --c3: #9E5A46; --c4: #6B6A8C;
+    --leafmark-op: 0;
+  }
+  .t-morris .wash {
+    background:
+      radial-gradient(760px 380px at 94% -6%, rgba(255,246,222,.85), transparent 70%),
+      radial-gradient(620px 420px at 0% 104%, rgba(224,208,176,.40), transparent 72%);
+  }
+
+  /* =====================================================================
+     F — GILDED BLOOM   art nouveau whiplash + peacock green
+     ===================================================================== */
+  .t-nouveau {
+    --bg-primary: #FDF6EA;
+    --side-bg: linear-gradient(180deg, rgba(250,240,224,.58) 0%, rgba(244,232,212,.68) 100%);
+    --text-primary: #22251F;
+    --text-secondary: #6E7266;
+    --accent: #2F6B5E;
+    --border: #EADFCB;
+    --border-strong: #A9A388;
+    --pos: #5F7C33;
+    --neg: #B04A2E;
+    --font-body: 'Poppins', sans-serif;
+    --font-display: 'Playfair Display', serif;
+    --card-bg: linear-gradient(172deg, #FFFDF9 0%, #FCF5E8 100%);
+    --card-border: #EDE2CE;
+    --card-radius: 16px;
+    --card-shadow: 0 1px 2px rgba(60,60,30,.06), 0 12px 30px -14px rgba(60,60,30,.28);
+    --card-inset: inset 0 1px 0 rgba(255,255,255,.95), inset 0 0 0 1px rgba(196,158,74,.10);
+    --mark-bg: #DCEAE4; --mark-shadow: 0 2px 6px -2px rgba(47,107,94,.42);
+    --nav-on-bg: linear-gradient(180deg,#FFFFFF,#FBF4E6); --nav-on-fg: #22251F;
+    --nav-on-shadow: 0 1px 2px rgba(60,60,30,.10), inset 0 1px 0 #fff;
+    --btn-bg: linear-gradient(180deg,#3A7F70,#2A6055); --btn-fg: #F1F9F6; --btn-border: #23514830;
+    --btn-shadow: 0 2px 6px -1px rgba(40,90,80,.40), inset 0 1px 0 rgba(255,255,255,.26);
+    --pill-bg: #EDF2E3; --pill-border: #D6E0C2;
+    --chip-bg: #DFEDE7; --chip-border: #C8DED6;
+    --track: #EEE4D2; --track-inset: inset 0 1px 2px rgba(60,60,30,.12);
+    --c1: #2F6B5E; --c2: #C49E4A; --c3: #9A5A6B; --c4: #7B7F52;
+    --leafmark-op: .06;
+  }
+  .t-nouveau .wash {
+    background:
+      radial-gradient(900px 440px at 92% -8%, rgba(255,242,214,.9), transparent 68%),
+      radial-gradient(640px 440px at -4% 100%, rgba(222,212,182,.45), transparent 72%);
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= reusable botanical parts ================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- almond leaf, grows along +x from origin -->
+    <g id="leaf">
+      <path d="M0,0 C4,-5 12,-5.4 16.5,0 C12,5.4 4,5 0,0 Z" fill="none" stroke="currentColor" stroke-width="1.15"/>
+      <path d="M1.5,0 L15,0" fill="none" stroke="currentColor" stroke-width=".8" opacity=".75"/>
+      <path d="M5,-2.4 L7.6,0 M9,-2.2 L11.4,0 M5,2.4 L7.6,0 M9,2.2 L11.4,0" fill="none" stroke="currentColor" stroke-width=".6" opacity=".55"/>
+    </g>
+    <!-- five petal bloom, centred on origin -->
+    <g id="bloom">
+      <g fill="none" stroke="currentColor" stroke-width="1.15">
+        <ellipse cx="0" cy="-6.6" rx="3.3" ry="5.7"/>
+        <ellipse cx="0" cy="-6.6" rx="3.3" ry="5.7" transform="rotate(72)"/>
+        <ellipse cx="0" cy="-6.6" rx="3.3" ry="5.7" transform="rotate(144)"/>
+        <ellipse cx="0" cy="-6.6" rx="3.3" ry="5.7" transform="rotate(216)"/>
+        <ellipse cx="0" cy="-6.6" rx="3.3" ry="5.7" transform="rotate(288)"/>
+      </g>
+      <circle r="2.1" fill="none" stroke="currentColor" stroke-width="1.15"/>
+      <circle r=".7" fill="currentColor" opacity=".7"/>
+    </g>
+    <!-- closed bud on a short stalk -->
+    <g id="bud">
+      <path d="M0,0 C-3.4,-3 -3.2,-8.4 0,-11.4 C3.2,-8.4 3.4,-3 0,0 Z" fill="none" stroke="currentColor" stroke-width="1.1"/>
+      <path d="M0,0 L0,5.5" fill="none" stroke="currentColor" stroke-width="1"/>
+    </g>
+    <!-- curling tendril -->
+    <g id="tendril">
+      <path d="M0,0 C9,-7 19,-2.5 16.5,7 C14.6,14 6,14.6 4.6,7.6 C3.7,3.2 8.4,.6 11,4"
+            fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"/>
+    </g>
+    <!-- big stylised art nouveau bloom -->
+    <g id="poppy">
+      <g fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M0,-5 C11,-27 33,-22 27,-3 C23.6,8 8,9 0,-5 Z"/>
+        <path d="M0,-5 C11,-27 33,-22 27,-3 C23.6,8 8,9 0,-5 Z" transform="rotate(90)"/>
+        <path d="M0,-5 C11,-27 33,-22 27,-3 C23.6,8 8,9 0,-5 Z" transform="rotate(180)"/>
+        <path d="M0,-5 C11,-27 33,-22 27,-3 C23.6,8 8,9 0,-5 Z" transform="rotate(270)"/>
+      </g>
+      <circle r="5.4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <g stroke="currentColor" stroke-width=".9" stroke-linecap="round" opacity=".8">
+        <path d="M0,-5.4 L0,-9"/><path d="M5.4,0 L9,0"/><path d="M0,5.4 L0,9"/><path d="M-5.4,0 L-9,0"/>
+        <path d="M3.8,-3.8 L6.4,-6.4"/><path d="M3.8,3.8 L6.4,6.4"/><path d="M-3.8,3.8 L-6.4,6.4"/><path d="M-3.8,-3.8 L-6.4,-6.4"/>
+      </g>
+    </g>
+    <!-- vine sprig used as the wallpaper repeat unit -->
+    <g id="sprig">
+      <path d="M10,152 C36,132 26,102 52,84 C76,67 68,40 92,24"
+            fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <use href="#leaf" transform="translate(26,128) rotate(-42)"/>
+      <use href="#leaf" transform="translate(24,116) rotate(158) scale(.85)"/>
+      <use href="#leaf" transform="translate(44,94) rotate(-34)"/>
+      <use href="#leaf" transform="translate(42,80) rotate(160) scale(.85)"/>
+      <use href="#leaf" transform="translate(66,60) rotate(-38)"/>
+      <use href="#bud"  transform="translate(72,44) rotate(28) scale(.95)"/>
+      <use href="#bloom" transform="translate(95,18) scale(1.25)"/>
+      <use href="#bloom" transform="translate(70,104) scale(.9)"/>
+      <use href="#tendril" transform="translate(30,60) rotate(-20) scale(.9)"/>
+    </g>
+  </defs>
+</svg>
+
+<div class="page-head">
+  <h1>Theme 6 &mdash; three floral directions</h1>
+  <p>Same dashboard slice, same depth recipe as before (warm-tinted shadow, gradient card fill, 1px white inner highlight, decoration layer). What changes here is the ornament: every flower, leaf and vine below is hand-drawn SVG built from five reusable parts, so the whole decoration layer is a few KB of markup with no image files and no extra font requests.</p>
+</div>
+
+<!-- ============ D ============ -->
+<section class="option">
+  <div class="option-label">
+    <span class="tag">Option D</span>
+    <h2>Herbarium Press</h2>
+    <span class="note">Parchment + mulberry ink &middot; Playfair Display / Lato &middot; pressed specimens, sparse and scientific</span>
+  </div>
+  <div class="canvas t-herb">
+    <div class="deco">
+      <div class="wash"></div>
+      <!-- large specimen down the left gutter -->
+      <svg width="300" height="470" viewBox="0 0 300 470" style="left:-46px; top:8px; color:#5C7048; opacity:.42">
+        <path d="M84,462 C104,392 88,336 116,282 C142,232 128,176 158,128 C176,99 178,72 172,44"
+              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <use href="#leaf" transform="translate(96,420) rotate(-38) scale(1.55)"/>
+        <use href="#leaf" transform="translate(92,386) rotate(196) scale(1.4)"/>
+        <use href="#leaf" transform="translate(104,330) rotate(-32) scale(1.5)"/>
+        <use href="#leaf" transform="translate(112,292) rotate(198) scale(1.3)"/>
+        <use href="#leaf" transform="translate(130,246) rotate(-36) scale(1.45)"/>
+        <use href="#leaf" transform="translate(136,206) rotate(200) scale(1.25)"/>
+        <use href="#leaf" transform="translate(150,164) rotate(-40) scale(1.3)"/>
+        <use href="#tendril" transform="translate(120,352) rotate(-14) scale(1.15)"/>
+        <g style="color:#7D4A6B">
+          <use href="#bloom" transform="translate(174,36) scale(2.1)"/>
+          <use href="#bud" transform="translate(150,124) rotate(24) scale(1.5)"/>
+          <use href="#bud" transform="translate(166,84) rotate(-16) scale(1.25)"/>
+        </g>
+      </svg>
+      <!-- small mounted specimen, top right, like a second plate -->
+      <svg width="210" height="200" viewBox="0 0 210 200" style="right:-24px; top:-16px; color:#5C7048; opacity:.30">
+        <path d="M24,192 C56,150 46,110 80,78 C104,55 112,36 110,14"
+              fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        <use href="#leaf" transform="translate(38,164) rotate(-36) scale(1.2)"/>
+        <use href="#leaf" transform="translate(40,138) rotate(198) scale(1.05)"/>
+        <use href="#leaf" transform="translate(62,102) rotate(-30) scale(1.15)"/>
+        <use href="#bloom" transform="translate(112,10) scale(1.5)" style="color:#7D4A6B"/>
+        <use href="#bud" transform="translate(96,52) rotate(20) scale(1.2)" style="color:#7D4A6B"/>
+      </svg>
+      <!-- pressed cuttings scattered faintly -->
+      <svg width="160" height="120" viewBox="0 0 160 120" style="right:36%; bottom:-10px; color:#5C7048; opacity:.20">
+        <use href="#leaf" transform="translate(20,70) rotate(-18) scale(1.5)"/>
+        <use href="#leaf" transform="translate(74,88) rotate(14) scale(1.2)"/>
+        <use href="#bloom" transform="translate(126,60) scale(1.3)"/>
+      </svg>
+    </div>
+    <div class="app" data-app></div>
+  </div>
+  <div class="tokens" data-tokens="#FAF4E8 bg,#FFFDF8 card,#7D4A6B accent,#5C7048 foliage,#2B2419 ink,#E8DCC6 border"></div>
+</section>
+
+<!-- ============ E ============ -->
+<section class="option">
+  <div class="option-label">
+    <span class="tag">Option E</span>
+    <h2>Morris Weave</h2>
+    <span class="note">Old gold + pine &middot; Outfit / Inter &middot; a true wallpaper repeat across the whole surface</span>
+  </div>
+  <div class="canvas t-morris">
+    <div class="deco">
+      <div class="wash"></div>
+      <svg width="100%" height="100%" style="inset:0; color:#8A6110; opacity:.24">
+        <defs>
+          <pattern id="morris" width="168" height="168" patternUnits="userSpaceOnUse">
+            <use href="#sprig" transform="scale(.92)"/>
+            <use href="#sprig" transform="translate(168,168) rotate(180) scale(.92)"/>
+            <use href="#bud" transform="translate(140,58) rotate(150) scale(.9)" style="color:#46685A"/>
+            <use href="#bud" transform="translate(28,112) rotate(-30) scale(.9)" style="color:#46685A"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#morris)"/>
+      </svg>
+      <!-- a denser, darker band behind the sidebar, like a wallpaper panel -->
+      <svg width="178" height="100%" style="left:0; top:0; color:#46685A; opacity:.16">
+        <rect width="178" height="100%" fill="url(#morris)"/>
+      </svg>
+    </div>
+    <div class="app" data-app></div>
+  </div>
+  <div class="tokens" data-tokens="#F6EEDD bg,#FFFCF3 card,#8A6110 accent,#46685A pine,#241E13 ink,#E3D6BC border"></div>
+</section>
+
+<!-- ============ F ============ -->
+<section class="option">
+  <div class="option-label">
+    <span class="tag">Option F</span>
+    <h2>Gilded Bloom</h2>
+    <span class="note">Peacock green + gold leaf &middot; Playfair Display / Poppins &middot; art nouveau whiplash stems</span>
+  </div>
+  <div class="canvas t-nouveau">
+    <div class="deco">
+      <div class="wash"></div>
+      <!-- whiplash sweep out of the bottom left -->
+      <svg width="300" height="470" viewBox="0 0 300 470" style="left:-52px; bottom:-16px; color:#C49E4A; opacity:.62">
+        <g fill="none" stroke="currentColor" stroke-linecap="round">
+          <path d="M28,470 C86,414 62,332 108,272 C150,218 132,140 178,88" stroke-width="2.1"/>
+          <path d="M28,470 C66,428 116,404 148,352 C176,306 168,250 140,214" stroke-width="1.4" opacity=".8"/>
+          <path d="M78,470 C120,436 142,392 150,340" stroke-width="1.1" opacity=".6"/>
+        </g>
+        <use href="#leaf" transform="translate(64,404) rotate(-48) scale(1.9)"/>
+        <use href="#leaf" transform="translate(74,352) rotate(196) scale(1.7)"/>
+        <use href="#leaf" transform="translate(96,296) rotate(-36) scale(1.8)"/>
+        <use href="#leaf" transform="translate(124,232) rotate(198) scale(1.6)"/>
+        <use href="#leaf" transform="translate(146,168) rotate(-40) scale(1.5)"/>
+        <use href="#tendril" transform="translate(150,398) rotate(-20) scale(1.6)"/>
+        <use href="#tendril" transform="translate(48,262) rotate(152) scale(1.4)"/>
+        <g style="color:#2F6B5E">
+          <use href="#poppy" transform="translate(184,74) scale(1.15)"/>
+          <use href="#poppy" transform="translate(96,336) scale(.82)"/>
+          <use href="#bud" transform="translate(150,286) rotate(-30) scale(1.7)"/>
+        </g>
+      </svg>
+      <!-- mirrored flourish, top right, kept light -->
+      <svg width="330" height="250" viewBox="0 0 330 250" style="right:-40px; top:-46px; color:#C49E4A; opacity:.42">
+        <g fill="none" stroke="currentColor" stroke-linecap="round">
+          <path d="M340,-10 C250,26 268,110 190,146 C142,168 124,208 132,254" stroke-width="1.7"/>
+          <path d="M340,40 C276,58 244,104 236,158" stroke-width="1.1" opacity=".7"/>
+        </g>
+        <use href="#leaf" transform="translate(236,64) rotate(150) scale(1.5)"/>
+        <use href="#leaf" transform="translate(190,132) rotate(140) scale(1.35)"/>
+        <use href="#tendril" transform="translate(268,110) rotate(160) scale(1.2)"/>
+        <use href="#poppy" transform="translate(146,196) scale(.78)" style="color:#2F6B5E"/>
+      </svg>
+    </div>
+    <div class="app" data-app></div>
+  </div>
+  <div class="tokens" data-tokens="#FDF6EA bg,#FFFDF9 card,#2F6B5E accent,#C49E4A gold,#22251F ink,#EADFCB border"></div>
+</section>
+
+<template id="tpl">
+  <aside class="side">
+    <div class="brand"><span class="mark">L</span><span class="name">Ledger</span></div>
+    <div class="nav on"><span class="dot"></span>Dashboard</div>
+    <div class="nav"><span class="dot"></span>Budget</div>
+    <div class="nav"><span class="dot"></span>Investments</div>
+    <div class="nav"><span class="dot"></span>Compensation</div>
+    <div class="nav"><span class="dot"></span>Reports</div>
+    <div class="spacer"></div>
+    <div class="foot">Synced 4 min ago</div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h3>Dashboard</h3>
+        <div class="sub">August 2026 &middot; 6 accounts</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <span class="btn ghost">Export</span>
+        <span class="btn">Add account</span>
+      </div>
+    </div>
+
+    <div class="card hero" style="margin-bottom:13px">
+      <svg class="leafmark" width="200" height="200" viewBox="0 0 200 200" aria-hidden="true">
+        <use href="#bloom" transform="translate(130,70) scale(4.2)"/>
+        <use href="#leaf" transform="translate(40,150) rotate(-24) scale(4)"/>
+      </svg>
+      <div class="k">Net worth</div>
+      <div class="v">$248,910.32</div>
+      <div class="meta"><span class="pill">&#9650; 3.8%</span><span style="color:var(--text-secondary)">+$9,124 this month</span></div>
+      <svg class="spark" viewBox="0 0 600 100" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="g-%ID%" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity=".28"/>
+            <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,78 L50,72 L100,80 L150,60 L200,64 L250,46 L300,52 L350,36 L400,42 L450,26 L500,30 L550,16 L600,10 L600,100 L0,100 Z" fill="url(#g-%ID%)"/>
+        <path d="M0,78 L50,72 L100,80 L150,60 L200,64 L250,46 L300,52 L350,36 L400,42 L450,26 L500,30 L550,16 L600,10"
+              fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <div class="row3">
+      <div class="card"><div class="k">Cash</div><div class="v">$34,120</div><div class="d">+$1,240</div></div>
+      <div class="card"><div class="k">Invested</div><div class="v">$196,480</div><div class="d">+$8,310</div></div>
+      <div class="card"><div class="k">Liabilities</div><div class="v">$18,690</div><div class="d neg">&minus;$426</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card list">
+        <div class="k" style="margin-bottom:4px">Recent transactions</div>
+        <div class="item"><span class="ico">W</span><span class="nm">Whole Foods<small>Groceries &middot; Aug 24</small></span><span class="amt">&minus;$86.40</span></div>
+        <div class="item"><span class="ico">A</span><span class="nm">Acme Payroll<small>Income &middot; Aug 22</small></span><span class="amt">+$4,812.00</span></div>
+        <div class="item"><span class="ico">R</span><span class="nm">Rent<small>Housing &middot; Aug 21</small></span><span class="amt">&minus;$2,150.00</span></div>
+        <div class="item"><span class="ico">V</span><span class="nm">Vanguard VTI<small>Buy &middot; Aug 20</small></span><span class="amt">&minus;$1,000.00</span></div>
+      </div>
+      <div class="card">
+        <div class="k">Allocation</div>
+        <div class="bars">
+          <div class="bar-row"><div class="lab"><span>US equity</span><b>58%</b></div><div class="track"><div class="fill" style="width:58%;background:var(--c1)"></div></div></div>
+          <div class="bar-row"><div class="lab"><span>Intl equity</span><b>21%</b></div><div class="track"><div class="fill" style="width:21%;background:var(--c2)"></div></div></div>
+          <div class="bar-row"><div class="lab"><span>Bonds</span><b>13%</b></div><div class="track"><div class="fill" style="width:13%;background:var(--c3)"></div></div></div>
+          <div class="bar-row"><div class="lab"><span>Cash</span><b>8%</b></div><div class="track"><div class="fill" style="width:8%;background:var(--c4)"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</template>
+
+<script>
+  const tpl = document.getElementById('tpl').innerHTML;
+  document.querySelectorAll('[data-app]').forEach((el, i) => {
+    el.innerHTML = tpl.replaceAll('%ID%', 'x' + i);
+  });
+  document.querySelectorAll('[data-tokens]').forEach((el) => {
+    el.innerHTML = el.dataset.tokens.split(',').map((t) => {
+      const [hex, label] = t.trim().split(' ');
+      return '<span class="tok"><i style="background:' + hex + '"></i>' + hex + ' <span style="opacity:.6">' + label + '</span></span>';
+    }).join('');
+  });
+</script>
+</body>
+</html>

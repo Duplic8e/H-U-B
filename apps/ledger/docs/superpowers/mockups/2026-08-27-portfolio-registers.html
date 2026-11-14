@@ -1,0 +1,966 @@
+<title>Portfolio Tab, Four Ways</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:wght@500;600;700&family=Poppins:wght@400;500;600&family=Outfit:wght@400;500;600&display=swap">
+
+<style>
+/* ============ chrome tokens: light is the base, both dark states redefine ============ */
+:root{
+  --c-ground:#ECEEEC; --c-surface:#FFFFFF; --c-surface-2:#F5F7F5;
+  --c-ink:#171B19; --c-muted:#5C635F; --c-hair:#D5DAD6; --c-hair-soft:#E4E8E5;
+  --c-accent:#0F6B57; --c-accent-soft:rgba(15,107,87,.10);
+  --c-warn:#8A5A1B; --c-stop:#9C3B24;
+  --f-display:'Fraunces',Georgia,'Times New Roman',serif;
+  --f-body:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
+  --shadow:0 1px 2px rgba(20,30,26,.05),0 18px 40px -28px rgba(20,30,26,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --c-ground:#101413; --c-surface:#171C1A; --c-surface-2:#1D2321;
+    --c-ink:#E8EDEA; --c-muted:#98A29D; --c-hair:#242C29; --c-hair-soft:#1E2523;
+    --c-accent:#43C4A2; --c-accent-soft:rgba(67,196,162,.12);
+    --c-warn:#D8A657; --c-stop:#E07A5F;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -28px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --c-ground:#101413; --c-surface:#171C1A; --c-surface-2:#1D2321;
+  --c-ink:#E8EDEA; --c-muted:#98A29D; --c-hair:#242C29; --c-hair-soft:#1E2523;
+  --c-accent:#43C4A2; --c-accent-soft:rgba(67,196,162,.12);
+  --c-warn:#D8A657; --c-stop:#E07A5F;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -28px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--c-ground); color:var(--c-ink);
+  font-family:var(--f-body); font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px 96px}
+h1,h2,h3{text-wrap:balance; margin:0}
+a{color:var(--c-accent)}
+:focus-visible{outline:2px solid var(--c-accent); outline-offset:2px; border-radius:3px}
+
+.eyebrow{
+  font-family:var(--f-mono); font-size:11px; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--c-muted);
+}
+
+/* ---------------- masthead ---------------- */
+.masthead{padding:72px 0 40px; border-bottom:1px solid var(--c-hair)}
+.masthead h1{
+  font-family:var(--f-display); font-weight:600;
+  font-size:clamp(38px,6vw,62px); line-height:1.02;
+  letter-spacing:-.02em; margin:14px 0 0;
+  font-variation-settings:'opsz' 120;
+}
+.masthead .lede{
+  margin:20px 0 0; max-width:62ch; font-size:17px; color:var(--c-muted);
+}
+.masthead .lede strong{color:var(--c-ink); font-weight:600}
+
+.meta-row{
+  display:flex; flex-wrap:wrap; gap:10px 28px; margin-top:26px;
+  font-family:var(--f-mono); font-size:12px; color:var(--c-muted);
+}
+.meta-row b{color:var(--c-ink); font-weight:500}
+
+/* ---------------- theme switcher ---------------- */
+.switcher{
+  position:sticky; top:0; z-index:20; margin-top:0;
+  background:color-mix(in srgb, var(--c-ground) 88%, transparent);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--c-hair);
+  padding:12px 0;
+}
+.switcher-inner{
+  max-width:1080px; margin:0 auto; padding:0 24px;
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+}
+.seg{display:flex; gap:4px; background:var(--c-surface-2); padding:4px; border-radius:8px; border:1px solid var(--c-hair-soft)}
+.seg button{
+  font-family:var(--f-mono); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase;
+  padding:7px 13px; border-radius:5px; border:1px solid transparent;
+  background:transparent; color:var(--c-muted); cursor:pointer; transition:background .16s,color .16s;
+}
+.seg button:hover{color:var(--c-ink)}
+.seg button[aria-pressed="true"]{background:var(--c-surface); color:var(--c-ink); border-color:var(--c-hair); box-shadow:0 1px 2px rgba(0,0,0,.06)}
+
+/* ---------------- entries ---------------- */
+.entry{padding:64px 0 0; border-top:1px solid var(--c-hair); margin-top:56px}
+.entry:first-of-type{border-top:none; margin-top:0}
+.entry-head{display:flex; gap:20px; align-items:baseline; flex-wrap:wrap}
+.entry-mark{
+  font-family:var(--f-mono); font-size:12px; font-weight:700; letter-spacing:.1em;
+  color:var(--c-accent); border:1px solid var(--c-accent); border-radius:4px;
+  padding:3px 8px; line-height:1;
+}
+.entry h2{
+  font-family:var(--f-display); font-weight:600; font-size:clamp(26px,3.4vw,36px);
+  letter-spacing:-.015em; line-height:1.1; font-variation-settings:'opsz' 60;
+}
+.thesis{margin:16px 0 0; max-width:66ch; font-size:16.5px; color:var(--c-muted)}
+.thesis strong{color:var(--c-ink); font-weight:600}
+
+.frame{
+  margin-top:28px; border:1px solid var(--c-hair); border-radius:12px;
+  overflow:hidden; box-shadow:var(--shadow); background:var(--c-surface);
+}
+.frame-bar{
+  display:flex; align-items:center; gap:10px;
+  padding:9px 14px; border-bottom:1px solid var(--c-hair);
+  background:var(--c-surface-2);
+  font-family:var(--f-mono); font-size:11px; color:var(--c-muted); letter-spacing:.05em;
+}
+.dot{width:9px; height:9px; border-radius:50%; background:var(--c-hair); flex:none}
+
+.notes{display:grid; grid-template-columns:1fr 1fr; gap:0 40px; margin-top:28px}
+@media (max-width:720px){ .notes{grid-template-columns:1fr; gap:28px} }
+.notes h3{
+  font-family:var(--f-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--c-muted); font-weight:500; margin-bottom:12px;
+}
+.notes ul{margin:0; padding:0; list-style:none}
+.notes li{
+  position:relative; padding:9px 0 9px 18px; font-size:14.5px; line-height:1.55;
+  border-bottom:1px solid var(--c-hair-soft);
+}
+.notes li:last-child{border-bottom:none}
+.notes li::before{
+  content:''; position:absolute; left:0; top:17px;
+  width:6px; height:1px; background:var(--c-accent);
+}
+.notes li b{font-weight:600}
+.cost li::before{background:var(--c-warn)}
+
+/* ---------------- comparison ---------------- */
+.compare{margin-top:24px; overflow-x:auto; border:1px solid var(--c-hair); border-radius:12px; background:var(--c-surface)}
+table.cmp{border-collapse:collapse; width:100%; min-width:640px; font-size:14px}
+table.cmp th, table.cmp td{padding:14px 18px; text-align:left; border-bottom:1px solid var(--c-hair-soft); vertical-align:top}
+table.cmp thead th{
+  font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--c-muted); font-weight:500; background:var(--c-surface-2); border-bottom:1px solid var(--c-hair);
+}
+table.cmp tbody tr:last-child td{border-bottom:none}
+table.cmp td:first-child{font-weight:600}
+.pill{
+  display:inline-block; font-family:var(--f-mono); font-size:10.5px; letter-spacing:.06em;
+  padding:3px 8px; border-radius:20px; border:1px solid currentColor; line-height:1.3; white-space:nowrap;
+}
+.pill.lo{color:var(--c-accent)} .pill.mid{color:var(--c-warn)} .pill.hi{color:var(--c-stop)}
+
+.closing{margin-top:64px; padding:36px 40px; border-radius:12px; background:var(--c-surface); border:1px solid var(--c-hair); box-shadow:var(--shadow)}
+.closing h2{font-family:var(--f-display); font-size:26px; font-weight:600; letter-spacing:-.01em; font-variation-settings:'opsz' 40}
+.closing p{margin:14px 0 0; max-width:68ch; color:var(--c-muted); font-size:15.5px}
+.closing p strong{color:var(--c-ink); font-weight:600}
+.flag{
+  margin-top:22px; padding:16px 18px; border-radius:8px;
+  background:var(--c-accent-soft); border:1px solid color-mix(in srgb, var(--c-accent) 30%, transparent);
+  font-size:14.5px; color:var(--c-ink);
+}
+.flag b{font-weight:600}
+
+/* ================================================================
+   LEDGER MOCKUP TOKENS. Real values lifted from src/index.css.
+   Scoped to .mock so the viewer's own theme never leaks in.
+   ================================================================ */
+.mock{
+  --l-bg:#FDF6EA; --l-bg2:#F5EDDD; --l-text:#22251F; --l-text2:#65695E;
+  --l-accent:#2F6B5E; --l-border:#EADFCB; --l-error:#B04A2E;
+  --l-card:#FFFDF9; --l-card-border:#EDE2CE;
+  --l-card-shadow:0 1px 2px rgba(60,60,30,.06),0 12px 30px -14px rgba(60,60,30,.28),inset 0 1px 0 rgba(255,255,255,.95);
+  --l-c1:#2F6B5E; --l-c2:#A8842F; --l-c3:#9A5A6B; --l-c4:#7B7F52; --l-c5:#46708F; --l-c6:#B04A2E;
+  --l-on1:#fff; --l-on2:#20180A; --l-on3:#fff; --l-on4:#fff; --l-on5:#fff; --l-on6:#fff;
+  --l-display:'Playfair Display',Georgia,serif; --l-body:'Poppins',system-ui,sans-serif;
+  background:var(--l-bg); color:var(--l-text); font-family:var(--l-body);
+  padding:20px; transition:background .2s;
+}
+.mock[data-lt="tactical"]{
+  --l-bg:#0a0a0a; --l-bg2:#171717; --l-text:#f8fafc; --l-text2:#94a3b8;
+  --l-accent:#10b981; --l-border:#27272a; --l-error:#ff3b30;
+  --l-card:#111111; --l-card-border:#27272a; --l-card-shadow:none;
+  --l-c1:#10b981; --l-c2:#8b5cf6; --l-c3:#f59e0b; --l-c4:#ec4899; --l-c5:#3b82f6; --l-c6:#ef4444;
+  --l-on1:#06130E; --l-on2:#fff; --l-on3:#1A1204; --l-on4:#fff; --l-on5:#fff; --l-on6:#fff;
+  --l-display:'JetBrains Mono',monospace; --l-body:'JetBrains Mono',monospace;
+}
+.mock[data-lt="aurora"]{
+  --l-bg:#090d16; --l-bg2:#0f172a; --l-text:#f8fafc; --l-text2:#94a3b8;
+  --l-accent:#34d399; --l-border:#1e293b; --l-error:#f87171;
+  --l-card:#0f172a; --l-card-border:#1e293b; --l-card-shadow:0 10px 25px -5px rgba(0,0,0,.4);
+  --l-c1:#34d399; --l-c2:#a78bfa; --l-c3:#fbbf24; --l-c4:#f472b6; --l-c5:#38bdf8; --l-c6:#f87171;
+  --l-on1:#06130E; --l-on2:#140B22; --l-on3:#1A1204; --l-on4:#210A15; --l-on5:#04141C; --l-on6:#210909;
+  --l-display:'Outfit',system-ui,sans-serif; --l-body:'Poppins',system-ui,sans-serif;
+}
+
+/* --- shared mockup primitives (mirror the app's themed-card etc.) --- */
+.m-card{background:var(--l-card); border:1px solid var(--l-card-border); border-radius:8px; box-shadow:var(--l-card-shadow)}
+.m-stack{display:flex; flex-direction:column; gap:16px}
+.m-lbl{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--l-text2); margin:0}
+.m-h3{font-size:13px; font-weight:600; color:var(--l-text); margin:0; font-family:var(--l-body)}
+.m-num{font-variant-numeric:tabular-nums}
+.m-pos{color:var(--l-accent)} .m-neg{color:var(--l-error)}
+.m-page-h{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap}
+.m-page-h h2{font-size:19px; font-weight:600; margin:0; color:var(--l-text); font-family:var(--l-display)}
+.m-page-h p{margin:3px 0 0; font-size:12px; color:var(--l-text2)}
+.m-btn{
+  display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:6px;
+  background:var(--l-accent); color:var(--l-bg); font-size:12px; font-weight:500; border:none; white-space:nowrap;
+}
+.m-tabs{display:flex; gap:2px; border-bottom:1px solid var(--l-border)}
+.m-tabs span{padding:8px 14px; font-size:12px; color:var(--l-text2); border-bottom:2px solid transparent; margin-bottom:-1px}
+.m-tabs span.on{color:var(--l-accent); border-bottom-color:var(--l-accent); font-weight:500}
+
+table.m-tbl{width:100%; border-collapse:collapse; font-size:11.5px; font-variant-numeric:tabular-nums}
+table.m-tbl th{
+  text-align:right; font-weight:500; color:var(--l-text2); padding:6px 8px 6px 0;
+  border-bottom:1px solid var(--l-border); font-size:10.5px; white-space:nowrap;
+}
+table.m-tbl th:first-child{text-align:left}
+table.m-tbl td{padding:8px 8px 8px 0; text-align:right; border-bottom:1px solid var(--l-border); white-space:nowrap}
+table.m-tbl td:first-child{text-align:left}
+table.m-tbl tr:last-child td{border-bottom:none}
+.m-tkr{font-weight:500; color:var(--l-text)}
+.m-sub{display:block; font-size:9.5px; color:var(--l-text2); margin-top:1px}
+.m-chip{display:inline-block; width:7px; height:7px; border-radius:2px; margin-right:7px; vertical-align:baseline}
+.m-acct-head{display:flex; justify-content:space-between; align-items:center; gap:10px; padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid var(--l-border)}
+
+.m-scroll{overflow-x:auto}
+.m-scroll table{min-width:600px}
+
+/* --- P/L diverging bar --- */
+.plbar{display:flex; align-items:center; justify-content:flex-end; gap:8px}
+.plbar .track{position:relative; width:56px; height:5px; border-radius:3px; background:color-mix(in srgb,var(--l-text2) 18%,transparent); flex:none}
+.plbar .mid{position:absolute; left:50%; top:-2px; width:1px; height:9px; background:color-mix(in srgb,var(--l-text2) 45%,transparent)}
+.plbar .fill{position:absolute; top:0; height:5px; border-radius:3px}
+.allocbar{display:block; height:3px; margin-top:3px; border-radius:2px; background:color-mix(in srgb,var(--l-text2) 16%,transparent); overflow:hidden}
+.allocbar i{display:block; height:100%; background:var(--l-accent); border-radius:2px}
+
+/* --- stacked 100% bar --- */
+.stack{display:flex; height:100%; width:100%; border-radius:4px; overflow:hidden; gap:1px}
+.stack i{display:block; height:100%}
+.stackrow{display:grid; grid-template-columns:74px 1fr; gap:12px; align-items:center}
+.stackrow .lab{font-size:10px; color:var(--l-text2); text-transform:uppercase; letter-spacing:.05em}
+.stackrow .bar{height:16px}
+
+/* --- treemap --- */
+.tmap{display:flex; flex-direction:column; gap:3px; height:230px}
+.tmap .trow{display:flex; gap:3px; min-height:0}
+.tmap .cell{
+  position:relative; border-radius:4px; padding:7px 9px; overflow:hidden; min-width:0;
+  display:flex; flex-direction:column; justify-content:flex-end;
+}
+/* A scrim, not a per-slice ink colour. Several chart tokens are mid-tone
+   olives, ambers and mints that clear 4.5:1 against neither white nor black,
+   and there are six palettes to satisfy. Darkening the foot of every cell
+   makes white labels safe on all of them by construction. */
+.tmap .cell::before{
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(to top, rgba(0,0,0,.68) 0%, rgba(0,0,0,.36) 46%, rgba(0,0,0,0) 80%);
+}
+.tmap .cell b{position:relative; z-index:1; font-size:12px; font-weight:600; line-height:1.1; white-space:nowrap; color:#fff}
+.tmap .cell span{position:relative; z-index:1; font-size:10px; color:rgba(255,255,255,.88); font-variant-numeric:tabular-nums; white-space:nowrap}
+
+/* --- key/value list --- */
+.kv{display:flex; flex-direction:column}
+.kv div{display:flex; justify-content:space-between; align-items:baseline; gap:14px; padding:9px 0; border-bottom:1px solid var(--l-border)}
+.kv div:last-child{border-bottom:none}
+.kv dt{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--l-text2); margin:0}
+.kv dd{margin:0; font-size:13px; font-weight:500; font-variant-numeric:tabular-nums; text-align:right}
+
+/* --- hero band pieces --- */
+.hero-big{font-family:var(--l-display); font-size:38px; font-weight:600; line-height:1; letter-spacing:-.02em; font-variation-settings:'opsz' 90}
+.hero-rule{width:1px; align-self:stretch; background:var(--l-border); flex:none}
+.hero-side{display:flex; flex-direction:column; gap:2px; min-width:0}
+.hero-side .v{font-size:15px; font-weight:600; font-variant-numeric:tabular-nums}
+
+.rowstripe{position:relative}
+.rowstripe::before{content:''; position:absolute; left:-8px; top:6px; bottom:6px; width:2px; border-radius:2px; background:var(--l-accent)}
+.rowstripe.dn::before{background:var(--l-error)}
+
+.legend{display:flex; flex-direction:column; gap:1px; font-size:11px}
+.legend .lrow{position:relative; display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 7px; border-radius:4px; overflow:hidden}
+.legend .lfill{position:absolute; inset:0; opacity:.11; border-radius:4px}
+.legend .lname{position:relative; display:flex; align-items:center; gap:7px; min-width:0}
+.legend .lval{position:relative; color:var(--l-text2); font-variant-numeric:tabular-nums; white-space:nowrap; font-size:10.5px}
+
+/* The mockups lay their inner grids out with inline styles, which a plain
+   stylesheet rule cannot beat. On a phone every one of them wants to stack,
+   so override the lot rather than thread a class through each render. */
+@media (max-width:640px){
+  .mock [style*="grid-template-columns"]{grid-template-columns:1fr !important}
+  .mock{padding:14px}
+  .hero-rule{display:none}
+  .tmap{height:300px}
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important; animation:none !important}
+}
+</style>
+
+<div class="switcher">
+  <div class="switcher-inner">
+    <span class="eyebrow">Render mockups in</span>
+    <div class="seg" role="group" aria-label="Ledger theme for all mockups">
+      <button type="button" data-t="nouveau" aria-pressed="true">Gilded Bloom</button>
+      <button type="button" data-t="tactical" aria-pressed="false">Tactical</button>
+      <button type="button" data-t="aurora" aria-pressed="false">Aurora</button>
+    </div>
+    <span class="eyebrow" style="opacity:.7">Same markup, three of your six palettes</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Ledger 0.9.7-beta &middot; Investments &rsaquo; Portfolio</p>
+    <h1>Portfolio Tab, Four Ways</h1>
+    <p class="lede">
+      Four visual registers for the same page, all working inside the agreed scope: <strong>restructure the top, enrich the table, leave the account grouping alone</strong>. No new data is fetched in any of them. Every figure below is derived from the eight holdings already in the store.
+    </p>
+    <div class="meta-row">
+      <span>Holdings <b>8</b></span>
+      <span>Accounts <b>3</b></span>
+      <span>Value <b>$93,394</b></span>
+      <span>P/L <b>+$17,062 (+22.4%)</b></span>
+      <span>Figures <b>corrected for the FX bug</b></span>
+    </div>
+  </header>
+
+  <!-- ============ BASELINE ============ -->
+  <section class="entry">
+    <div class="entry-head">
+      <span class="entry-mark">NOW</span>
+      <h2>What ships today</h2>
+    </div>
+    <p class="thesis">
+      Three equal-weight stat cards, a donut with a plain text legend, then one table per account. Nothing is broken and nothing is emphasised. Every number carries the same visual weight as every other number, so the page has no entry point: your eye lands nowhere in particular.
+    </p>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>Investments &rsaquo; Portfolio</span></div>
+      <div class="mock" data-lt="nouveau" id="mock-now"></div>
+    </div>
+  </section>
+
+  <!-- ============ A ============ -->
+  <section class="entry">
+    <div class="entry-head">
+      <span class="entry-mark">A</span>
+      <h2>Quiet</h2>
+    </div>
+    <p class="thesis">
+      <strong>One number leads; everything else defers to it.</strong> The three cards collapse into a single summary band where Holdings Value is set at display scale and Invested, mix, and count sit beside it as hairline-separated satellites. The table gains exactly two encodings: a colour chip tying each ticker to its allocation slice, and a diverging bar behind P/L so gains and the one loss separate at a glance.
+    </p>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>Register A &middot; Quiet</span></div>
+      <div class="mock" data-lt="nouveau" id="mock-a"></div>
+    </div>
+    <div class="notes">
+      <div>
+        <h3>What changes</h3>
+        <ul>
+          <li>Three stat cards become <b>one summary band</b>, hairlines instead of card borders</li>
+          <li>Donut keeps its total <b>in the hole</b>, legend rows gain a weight wash</li>
+          <li>Ticker cells carry a <b>slice-coloured chip</b>, linking table to chart</li>
+          <li>P/L gains a <b>diverging bar</b> from a shared centre line</li>
+          <li>Column count, account grouping, and sort behaviour untouched</li>
+        </ul>
+      </div>
+      <div class="cost">
+        <h3>Cost</h3>
+        <ul>
+          <li>Only existing theme tokens, so all six palettes work by construction</li>
+          <li><b>PortfolioView</b> header block rewritten; <b>HoldingRow</b> gains two cells' worth of markup</li>
+          <li>Existing row and totals tests keep passing; the chip needs a colour-parity test against the chart</li>
+          <li>Lowest ceiling of the three: it is the same page, better composed</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ B ============ -->
+  <section class="entry">
+    <div class="entry-head">
+      <span class="entry-mark">B</span>
+      <h2>Instrument</h2>
+    </div>
+    <p class="thesis">
+      <strong>Encode everything; make the page readable without reading it.</strong> The donut is retired in favour of stacked bars, one per allocation mode, all three visible at once instead of hidden behind a toggle. Rows carry a performance stripe, mono numerals, and a tighter rhythm. This is the densest option and the one that most changes the page's character: it reads like an instrument panel rather than a document.
+    </p>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>Register B &middot; Instrument</span></div>
+      <div class="mock" data-lt="nouveau" id="mock-b"></div>
+    </div>
+    <div class="notes">
+      <div>
+        <h3>What changes</h3>
+        <ul>
+          <li>Summary band carries a <b>full-width 100% stacked bar</b> under the headline number</li>
+          <li>Allocation toggle disappears: <b>holding, account, and currency shown together</b></li>
+          <li>Every row gains a <b>left performance stripe</b>, plus P/L and allocation bars</li>
+          <li>Account subtotal strips gain their own <b>mini stacked bar</b></li>
+          <li>Row height tightens; numerals go tabular throughout</li>
+        </ul>
+      </div>
+      <div class="cost">
+        <h3>Cost</h3>
+        <ul>
+          <li>Puts <b>all six chart tokens</b> on screen at once in every theme, so the contrast test matters more here</li>
+          <li>Retiring the donut removes the <b>aria-pressed toggle</b> your e2e suite asserts on</li>
+          <li><b>AllocationChart</b> is effectively rewritten, not extended</li>
+          <li>Densest option: least forgiving on tablet and short-wide, which you already gate on</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ C ============ -->
+  <section class="entry">
+    <div class="entry-head">
+      <span class="entry-mark">C</span>
+      <h2>Editorial</h2>
+    </div>
+    <p class="thesis">
+      <strong>Hierarchy through scale and space, not through more ink.</strong> The hero splits: a very large value figure on the left, a short derived-facts column on the right (best and weakest performer, currency split, top weight). Allocation becomes a weighted treemap, which reads share far faster than a donut at eight slices. The table sheds two columns to a per-row detail, so the default view is calmer than any other option here.
+    </p>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>Register C &middot; Editorial</span></div>
+      <div class="mock" data-lt="nouveau" id="mock-c"></div>
+    </div>
+    <div class="notes">
+      <div>
+        <h3>What changes</h3>
+        <ul>
+          <li>Hero splits into <b>headline figure plus a derived-facts column</b></li>
+          <li>Donut becomes a <b>proportional treemap</b>, areas exact, no legend needed</li>
+          <li><b>Avg Cost and Book move into an expandable row</b>, shown open on VFV here</li>
+          <li>Best, weakest, and concentration surfaced without any new fetch</li>
+          <li>Most whitespace of the three, least ink per square inch</li>
+        </ul>
+      </div>
+      <div class="cost">
+        <h3>Cost</h3>
+        <ul>
+          <li>Treemap is a <b>new chart form</b>: needs its own accessible name and must stay non-focusable inside the figure</li>
+          <li>Hiding columns behind a disclosure touches <b>table semantics your e2e guard asserts</b></li>
+          <li>Largest diff of the three; <b>HoldingRow expands into a two-state component</b></li>
+          <li>Highest ceiling, and the only option that changes what you see first</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ D ============ -->
+  <section class="entry">
+    <div class="entry-head">
+      <span class="entry-mark">D</span>
+      <h2>Hybrid</h2>
+    </div>
+    <p class="thesis">
+      <strong>Instrument's allocation, Editorial's holdings.</strong> All three allocation cuts stay visible at once as stacked bars, so nothing hides behind a toggle, while the table below keeps Editorial's calm six columns with Avg Cost and Book folded into a per-row detail. The hero is Editorial's split, because Instrument's version repeats the by-holding bar that now sits in the allocation card directly beneath it.
+    </p>
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>Register D &middot; Hybrid</span></div>
+      <div class="mock" data-lt="nouveau" id="mock-d"></div>
+    </div>
+    <div class="notes">
+      <div>
+        <h3>What changes</h3>
+        <ul>
+          <li>Allocation becomes <b>three stacked bars</b>, holding, account, and currency together</li>
+          <li>Hero splits into <b>headline figure plus derived facts</b></li>
+          <li>Table drops to <b>six columns</b>, Avg Cost and Book behind a row disclosure</li>
+          <li>No donut and <b>no treemap</b>, so one fewer chart form than C</li>
+          <li>Densest information, calmest table: the two halves pull opposite ways on purpose</li>
+        </ul>
+      </div>
+      <div class="cost">
+        <h3>Cost</h3>
+        <ul>
+          <li>Inherits B's cost: <b>retiring the donut removes the toggle your e2e suite asserts on</b></li>
+          <li>Inherits C's cost: <b>HoldingRow becomes a two-state component</b></li>
+          <li>Cheaper than C in one way: <b>stacked bars need no new chart primitive</b>, they are divs</li>
+          <li>The two heaviest test risks of the set land in the same change</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COMPARISON ============ -->
+  <section class="entry">
+    <div class="entry-head">
+      <span class="entry-mark">VS</span>
+      <h2>Side by side</h2>
+    </div>
+    <div class="compare">
+      <table class="cmp">
+        <thead>
+          <tr><th>Register</th><th>Reads as</th><th>Files touched</th><th>Test risk</th><th>Visual change</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>A &middot; Quiet</td>
+            <td>The same app, properly composed</td>
+            <td>PortfolioView, HoldingRow, HoldingCard</td>
+            <td><span class="pill lo">Low</span></td>
+            <td>Noticeable</td>
+          </tr>
+          <tr>
+            <td>B &middot; Instrument</td>
+            <td>A trading terminal</td>
+            <td>PortfolioView, AllocationChart (rewrite), HoldingRow, HoldingCard</td>
+            <td><span class="pill hi">High</span></td>
+            <td>Dramatic</td>
+          </tr>
+          <tr>
+            <td>C &middot; Editorial</td>
+            <td>A statement your bank wishes it sent</td>
+            <td>PortfolioView, new Treemap, HoldingRow (two-state), HoldingCard</td>
+            <td><span class="pill mid">Medium</span></td>
+            <td>Dramatic</td>
+          </tr>
+          <tr>
+            <td>D &middot; Hybrid</td>
+            <td>A dense briefing with a quiet ledger under it</td>
+            <td>PortfolioView, AllocationChart (rewrite), HoldingRow (two-state), HoldingCard</td>
+            <td><span class="pill hi">High</span></td>
+            <td>Dramatic</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="closing">
+    <h2>Where I would go</h2>
+    <p>
+      <strong>C for the top of the page, A for the table.</strong> The hero split and the treemap are what actually make the page feel richer, and they are additive: nothing existing has to be deleted to get them. The table, meanwhile, is where your test surface and your accessibility guards live, so it wants A's restraint rather than C's disclosure rows or B's stripes. That combination gets most of the visual ceiling for roughly medium risk.
+    </p>
+    <p>
+      B is the one I would argue against unless you want the app to change character. Retiring the donut costs you a control your e2e suite asserts on, and putting all six chart colours on screen at once in six themes is a contrast problem you would be solving repeatedly.
+    </p>
+    <p>
+      <strong>On D:</strong> it works, and the two halves balance better than I expected, a dense read up top over a calm ledger below. Be aware of what it stacks up, though. It is the only register that takes on both heavy test risks at once: the retired allocation toggle from B and the two-state row from C. If you want D, the cheap move is to land the table half first, since it stands alone, then replace the allocation block as a second change rather than carrying both through one review.
+    </p>
+    <div class="flag">
+      <b>One thing first, whichever you pick.</b> Manual price overrides are stamped as USD in the market data service, so the live Portfolio tab currently shows <b>$112,582</b> where the true figure is <b>$93,394</b>. Every mockup above uses the corrected numbers. Building a richer presentation on top of the uncorrected ones would just make a wrong total more prominent.
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var R = 1.3869;
+  var H = [
+    {t:'VFV',  ex:'TSX',    a:'TFSA',           q:120, avg:112.40, px:148.90, cur:'CAD'},
+    {t:'XEQT', ex:'TSX',    a:'TFSA',           q:340, avg:28.15,  px:34.62,  cur:'CAD'},
+    {t:'AAPL', ex:'NASDAQ', a:'RRSP',           q:45,  avg:171.20, px:232.10, cur:'USD'},
+    {t:'MSFT', ex:'NASDAQ', a:'RRSP',           q:22,  avg:390.10, px:448.25, cur:'USD'},
+    {t:'NVDA', ex:'NASDAQ', a:'RRSP',           q:30,  avg:118.70, px:176.40, cur:'USD'},
+    {t:'BNS',  ex:'TSX',    a:'Non-Registered', q:150, avg:66.20,  px:78.30,  cur:'CAD'},
+    {t:'CNQ',  ex:'TSX',    a:'Non-Registered', q:200, avg:44.80,  px:41.05,  cur:'CAD'},
+    {t:'BRK.B',ex:'NYSE',   a:'Non-Registered', q:12,  avg:412.00, px:498.60, cur:'USD'}
+  ];
+
+  H.forEach(function(h){
+    var f = h.cur === 'USD' ? R : 1;
+    h.book = h.q * h.avg * f;
+    h.val  = h.q * h.px  * f;
+    h.pl   = h.val - h.book;
+    h.plPct = (h.px / h.avg - 1) * 100;
+  });
+
+  var TOTV = H.reduce(function(s,h){ return s + h.val;  }, 0);
+  var TOTB = H.reduce(function(s,h){ return s + h.book; }, 0);
+  var TOTP = TOTV - TOTB;
+  H.forEach(function(h){ h.alloc = h.val / TOTV * 100; });
+
+  var ACCTS = ['TFSA','RRSP','Non-Registered'];
+  function acctRows(a){ return H.filter(function(h){ return h.a === a; }); }
+  function sum(list, k){ return list.reduce(function(s,h){ return s + h[k]; }, 0); }
+
+  // Slices ordered by value, which is also the colour order in the app.
+  var SLICES = H.slice().sort(function(x,y){ return y.val - x.val; });
+  function colr(i){ return 'var(--l-c' + ((i % 6) + 1) + ')'; }
+  var COLOR_OF = {};
+  SLICES.forEach(function(s,i){ COLOR_OF[s.t] = colr(i); });
+
+  var MAXABS = Math.max.apply(null, H.map(function(h){ return Math.abs(h.pl); }));
+
+  /* ---------- formatters ---------- */
+  function money(n){
+    var neg = n < 0;
+    var s = '$' + Math.round(Math.abs(n)).toLocaleString('en-US');
+    return neg ? '-' + s : s;
+  }
+  function signed(n){ return (n >= 0 ? '+' : '') + money(n); }
+  function pct(n, d){ return (n >= 0 ? '+' : '') + n.toFixed(d === undefined ? 1 : d) + '%'; }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function cls(n){ return n >= 0 ? 'm-pos' : 'm-neg'; }
+
+  /* ---------- shared fragments ---------- */
+  function pageHead(actionLabel){
+    return '<div class="m-page-h">' +
+      '<div><h2>Investments</h2><p>Your portfolio with live prices and allocations.</p></div>' +
+      '<span class="m-btn">' + esc(actionLabel) + '</span></div>' +
+      '<div class="m-tabs" style="margin-top:14px">' +
+        '<span>Plan vs Actual</span><span class="on">Portfolio</span><span>Trades</span><span>Options</span>' +
+      '</div>';
+  }
+
+  function donut(size){
+    // Stroke-dasharray ring. One path per slice, offset cumulatively.
+    var r = 42, c = 2 * Math.PI * r, acc = 0, out = '';
+    SLICES.forEach(function(s,i){
+      var len = s.alloc / 100 * c;
+      out += '<circle cx="60" cy="60" r="' + r + '" fill="none" stroke="' + colr(i) + '"' +
+             ' stroke-width="15" stroke-dasharray="' + (len - 1.5) + ' ' + (c - len + 1.5) + '"' +
+             ' stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 60 60)"></circle>';
+      acc += len;
+    });
+    return '<svg viewBox="0 0 120 120" width="' + size + '" height="' + size + '" role="img" aria-label="Allocation by holding">' + out + '</svg>';
+  }
+
+  function stackBar(items){
+    return '<div class="stack">' + items.map(function(it){
+      return '<i style="width:' + it.pct.toFixed(2) + '%;background:' + it.color + '"></i>';
+    }).join('') + '</div>';
+  }
+
+  function plBar(h){
+    var w = Math.abs(h.pl) / MAXABS * 50; // half-track max
+    var up = h.pl >= 0;
+    var style = up
+      ? 'left:50%;width:' + w.toFixed(1) + '%;background:var(--l-accent)'
+      : 'right:50%;width:' + w.toFixed(1) + '%;background:var(--l-error)';
+    return '<span class="plbar"><span class="' + cls(h.pl) + ' m-num">' + signed(h.pl) + '</span>' +
+      '<span class="track"><span class="mid"></span><span class="fill" style="' + style + '"></span></span></span>';
+  }
+
+  /* ================= BASELINE ================= */
+  function renderNow(){
+    var cards = [
+      ['Total Invested (CAD)', money(TOTB), ''],
+      ['Holdings Value (CAD)', money(TOTV), 'm-pos'],
+      ['Total P/L', signed(TOTP) + ' (' + pct(TOTP / TOTB * 100) + ')', 'm-pos']
+    ].map(function(c){
+      return '<div class="m-card" style="padding:12px"><p class="m-lbl">' + c[0] + '</p>' +
+        '<p class="m-num ' + c[2] + '" style="font-size:18px;font-weight:600;margin:4px 0 0">' + c[1] + '</p></div>';
+    }).join('');
+
+    var legend = SLICES.map(function(s,i){
+      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:1px 0">' +
+        '<span style="display:flex;align-items:center;gap:6px"><span class="m-chip" style="border-radius:50%;background:' + colr(i) + '"></span>' + esc(s.t) + '</span>' +
+        '<span class="m-num" style="color:var(--l-text2)">' + s.alloc.toFixed(1) + '% &middot; ' + money(s.val) + '</span></div>';
+    }).join('');
+
+    var rows = acctRows('TFSA').map(function(h){
+      return '<tr><td><span class="m-tkr">' + esc(h.t) + '</span><span class="m-sub">' + h.cur + ' &middot; Manual</span></td>' +
+        '<td>' + h.q + '</td><td>' + h.avg.toFixed(2) + '</td><td>' + h.px.toFixed(2) + '</td>' +
+        '<td>' + money(h.book) + '</td><td>' + money(h.val) + '</td>' +
+        '<td class="' + cls(h.pl) + '">' + signed(h.pl) + ' (' + pct(h.plPct) + ')</td>' +
+        '<td style="color:var(--l-text2)">' + pct(h.alloc) + '</td></tr>';
+    }).join('');
+
+    return pageHead('Import holdings') +
+      '<div class="m-stack" style="margin-top:16px">' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">' + cards + '</div>' +
+        '<div class="m-card" style="padding:14px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+            '<h3 class="m-h3">Allocation</h3>' +
+            '<div style="display:flex;gap:4px">' +
+              '<span style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid var(--l-accent);color:var(--l-accent)">By holding</span>' +
+              '<span style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid var(--l-border);color:var(--l-text2)">By account</span>' +
+              '<span style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid var(--l-border);color:var(--l-text2)">By currency</span>' +
+            '</div></div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center">' +
+            '<div style="display:flex;justify-content:center">' + donut(150) + '</div>' +
+            '<div>' + legend + '</div>' +
+          '</div></div>' +
+        '<div class="m-card" style="padding:14px">' +
+          '<div class="m-acct-head"><h3 class="m-h3">TFSA <span style="color:var(--l-text2);font-weight:400">(2)</span></h3>' +
+            '<span class="m-num" style="font-size:11px;color:var(--l-text2)">' + money(sum(acctRows('TFSA'),'val')) + ' <span class="m-pos">' + signed(sum(acctRows('TFSA'),'pl')) + '</span></span></div>' +
+          '<div class="m-scroll"><table class="m-tbl"><thead><tr>' +
+            '<th>Holding</th><th>Qty</th><th>Avg Cost</th><th>Price</th><th>Book</th><th>Value &darr;</th><th>P/L</th><th>Alloc</th>' +
+          '</tr></thead><tbody>' + rows + '</tbody></table></div></div>' +
+      '</div>';
+  }
+
+  /* ================= A: QUIET ================= */
+  function renderA(){
+    var sat = [
+      ['Total invested', money(TOTB)],
+      ['Currency mix', 'CAD 53% / USD 47%'],
+      ['Holdings', '8 in 3 accounts']
+    ].map(function(s){
+      return '<div class="hero-side"><p class="m-lbl">' + s[0] + '</p><span class="v">' + s[1] + '</span></div>';
+    }).join('<span class="hero-rule"></span>');
+
+    var legend = SLICES.map(function(s,i){
+      return '<div class="lrow"><span class="lfill" style="background:' + colr(i) + ';width:' + s.alloc.toFixed(1) + '%;right:auto"></span>' +
+        '<span class="lname"><span class="m-chip" style="background:' + colr(i) + '"></span>' + esc(s.t) + '</span>' +
+        '<span class="lval">' + s.alloc.toFixed(1) + '% &middot; ' + money(s.val) + '</span></div>';
+    }).join('');
+
+    function tbl(acct){
+      var list = acctRows(acct);
+      var rows = list.map(function(h){
+        return '<tr><td><span class="m-tkr"><span class="m-chip" style="background:' + COLOR_OF[h.t] + '"></span>' + esc(h.t) + '</span>' +
+            '<span class="m-sub" style="padding-left:14px">' + h.cur + ' &middot; Manual</span></td>' +
+          '<td>' + h.q + '</td><td>' + h.avg.toFixed(2) + '</td><td>' + h.px.toFixed(2) + '</td>' +
+          '<td>' + money(h.book) + '</td><td style="font-weight:500">' + money(h.val) + '</td>' +
+          '<td>' + plBar(h) + '</td>' +
+          '<td style="color:var(--l-text2)">' + h.alloc.toFixed(1) + '%<span class="allocbar"><i style="width:' + (h.alloc / SLICES[0].alloc * 100).toFixed(0) + '%"></i></span></td></tr>';
+      }).join('');
+      return '<div class="m-card" style="padding:14px">' +
+        '<div class="m-acct-head"><h3 class="m-h3">' + esc(acct) + ' <span style="color:var(--l-text2);font-weight:400">(' + list.length + ')</span></h3>' +
+          '<span class="m-num" style="font-size:11px;color:var(--l-text2)">' + money(sum(list,'val')) + ' <span class="m-pos">' + signed(sum(list,'pl')) + '</span></span></div>' +
+        '<div class="m-scroll"><table class="m-tbl"><thead><tr>' +
+          '<th>Holding</th><th>Qty</th><th>Avg Cost</th><th>Price</th><th>Book</th><th>Value &darr;</th><th>P/L</th><th>Alloc</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+    }
+
+    return pageHead('Import holdings') +
+      '<div class="m-stack" style="margin-top:16px">' +
+        '<div class="m-card" style="padding:20px 22px;display:flex;gap:26px;align-items:center;flex-wrap:wrap">' +
+          '<div style="min-width:210px">' +
+            '<p class="m-lbl">Holdings value (CAD)</p>' +
+            '<p class="hero-big m-num" style="margin:8px 0 0">' + money(TOTV) + '</p>' +
+            '<p class="m-num m-pos" style="margin:8px 0 0;font-size:13px;font-weight:500">&#9650; ' + signed(TOTP) + ' &middot; ' + pct(TOTP / TOTB * 100) + ' all time</p>' +
+          '</div>' +
+          '<span class="hero-rule"></span>' + sat +
+        '</div>' +
+        '<div class="m-card" style="padding:14px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+            '<h3 class="m-h3">Allocation</h3>' +
+            '<div style="display:flex;gap:4px">' +
+              '<span style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid var(--l-accent);color:var(--l-accent)">By holding</span>' +
+              '<span style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid var(--l-border);color:var(--l-text2)">By account</span>' +
+              '<span style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid var(--l-border);color:var(--l-text2)">By currency</span>' +
+            '</div></div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center">' +
+            '<div style="position:relative;display:flex;justify-content:center;align-items:center">' + donut(168) +
+              '<div style="position:absolute;text-align:center"><p class="m-lbl" style="font-size:9px">Total</p>' +
+              '<p class="m-num" style="margin:1px 0 0;font-size:15px;font-weight:600">' + money(TOTV) + '</p></div></div>' +
+            '<div class="legend">' + legend + '</div>' +
+          '</div></div>' +
+        tbl('TFSA') + tbl('Non-Registered') +
+      '</div>';
+  }
+
+  /* ---------- allocation series, shared by B and the hybrid ---------- */
+  function allocSeries(){
+    var byHolding = SLICES.map(function(s,i){ return { pct:s.alloc, color:colr(i), name:s.t }; });
+    var byAccount = ACCTS.map(function(a,i){
+      var v = sum(acctRows(a),'val');
+      return { pct:v / TOTV * 100, color:colr(i), name:a };
+    }).sort(function(x,y){ return y.pct - x.pct; });
+    var cadV = H.filter(function(h){ return h.cur === 'CAD'; }).reduce(function(s,h){ return s + h.val; }, 0);
+    var byCur = [
+      { pct:cadV / TOTV * 100, color:'var(--l-c1)', name:'CAD' },
+      { pct:100 - cadV / TOTV * 100, color:'var(--l-c5)', name:'USD' }
+    ];
+    return { byHolding:byHolding, byAccount:byAccount, byCur:byCur };
+  }
+
+  function labelled(items, n){
+    return items.slice(0, n).map(function(it){
+      return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--l-text2)">' +
+        '<span class="m-chip" style="background:' + it.color + ';margin:0"></span>' + esc(it.name) + ' ' + it.pct.toFixed(1) + '%</span>';
+    }).join('<span style="color:var(--l-border)">|</span>');
+  }
+
+  /* The three-bar allocation block. Identical in B and the hybrid, so the
+     comparison is between the surrounding registers, not two near-copies. */
+  function allocBars(){
+    var s = allocSeries();
+    return '<div class="m-card" style="padding:14px">' +
+      '<h3 class="m-h3" style="margin-bottom:12px">Allocation</h3>' +
+      '<div style="display:flex;flex-direction:column;gap:11px">' +
+        '<div class="stackrow"><span class="lab">Holding</span><div class="bar">' + stackBar(s.byHolding) + '</div></div>' +
+        '<div class="stackrow"><span class="lab">Account</span><div class="bar">' + stackBar(s.byAccount) + '</div></div>' +
+        '<div class="stackrow"><span class="lab">Currency</span><div class="bar">' + stackBar(s.byCur) + '</div></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--l-border);align-items:center">' +
+        labelled(s.byAccount, 3) + '<span style="color:var(--l-border)">|</span>' + labelled(s.byCur, 2) +
+      '</div></div>';
+  }
+
+  /* ================= B: INSTRUMENT ================= */
+  function renderB(){
+    var series = allocSeries();
+    var byHolding = series.byHolding;
+
+    var chips = [
+      ['Invested', money(TOTB), ''],
+      ['P/L', signed(TOTP), 'm-pos'],
+      ['Return', pct(TOTP / TOTB * 100), 'm-pos']
+    ].map(function(c){
+      return '<div style="border:1px solid var(--l-border);border-radius:6px;padding:7px 11px;min-width:96px">' +
+        '<p class="m-lbl" style="font-size:9px">' + c[0] + '</p>' +
+        '<p class="m-num ' + c[2] + '" style="margin:2px 0 0;font-size:14px;font-weight:600">' + c[1] + '</p></div>';
+    }).join('');
+
+    function tbl(acct){
+      var list = acctRows(acct);
+      var v = sum(list,'val');
+      var mini = list.slice().sort(function(x,y){ return y.val - x.val; }).map(function(h){
+        return { pct:h.val / v * 100, color:COLOR_OF[h.t] };
+      });
+      var rows = list.map(function(h){
+        return '<tr><td><span class="rowstripe' + (h.pl >= 0 ? '' : ' dn') + '" style="display:inline-block;padding-left:2px">' +
+            '<span class="m-tkr">' + esc(h.t) + '</span>' +
+            '<span class="m-sub">' + h.ex + ' &middot; ' + h.cur + '</span></span></td>' +
+          '<td>' + h.q + '</td><td>' + h.px.toFixed(2) + '</td>' +
+          '<td>' + money(h.book) + '</td><td style="font-weight:500">' + money(h.val) + '</td>' +
+          '<td>' + plBar(h) + '</td>' +
+          '<td class="' + cls(h.pl) + '" style="font-size:10.5px">' + pct(h.plPct) + '</td>' +
+          '<td style="color:var(--l-text2);width:64px">' + h.alloc.toFixed(1) + '%<span class="allocbar"><i style="width:' + (h.alloc / SLICES[0].alloc * 100).toFixed(0) + '%"></i></span></td></tr>';
+      }).join('');
+      return '<div class="m-card" style="padding:14px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--l-border)">' +
+          '<h3 class="m-h3">' + esc(acct) + ' <span style="color:var(--l-text2);font-weight:400">(' + list.length + ')</span></h3>' +
+          '<div style="flex:1;max-width:180px;height:8px">' + stackBar(mini) + '</div>' +
+          '<span class="m-num" style="font-size:11px;color:var(--l-text2)">' + money(v) + ' <span class="' + cls(sum(list,'pl')) + '">' + signed(sum(list,'pl')) + '</span></span></div>' +
+        '<div class="m-scroll" style="margin-top:8px"><table class="m-tbl" style="font-size:11px"><thead><tr>' +
+          '<th>Holding</th><th>Qty</th><th>Price</th><th>Book</th><th>Value &darr;</th><th>P/L</th><th>%</th><th>Alloc</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+    }
+
+    return pageHead('Import holdings') +
+      '<div class="m-stack" style="margin-top:16px">' +
+        '<div class="m-card" style="padding:18px 20px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap">' +
+            '<div><p class="m-lbl">Holdings value (CAD)</p>' +
+              '<p class="hero-big m-num" style="margin:6px 0 0">' + money(TOTV) + '</p></div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap">' + chips + '</div>' +
+          '</div>' +
+          '<div style="height:22px;margin-top:16px">' + stackBar(byHolding) + '</div>' +
+          '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center">' + labelled(byHolding, 5) + '</div>' +
+        '</div>' +
+        allocBars() +
+        tbl('TFSA') + tbl('Non-Registered') +
+      '</div>';
+  }
+
+  /* ---------- editorial hero, shared by C and the hybrid ---------- */
+  function heroEditorial(){
+    var best  = H.slice().sort(function(x,y){ return y.plPct - x.plPct; })[0];
+    var worst = H.slice().sort(function(x,y){ return x.plPct - y.plPct; })[0];
+    var top   = SLICES[0];
+    var cadV  = H.filter(function(h){ return h.cur === 'CAD'; }).reduce(function(s,h){ return s + h.val; }, 0);
+
+    var facts = [
+      ['Total invested', money(TOTB), ''],
+      ['Strongest', best.t + ' ' + pct(best.plPct), 'm-pos'],
+      ['Weakest', worst.t + ' ' + pct(worst.plPct), 'm-neg'],
+      ['Largest weight', top.t + ' ' + top.alloc.toFixed(1) + '%', ''],
+      ['Currency split', 'CAD ' + (cadV / TOTV * 100).toFixed(0) + ' / USD ' + (100 - cadV / TOTV * 100).toFixed(0), '']
+    ].map(function(f){
+      return '<div><dt>' + f[0] + '</dt><dd class="' + f[2] + '">' + f[1] + '</dd></div>';
+    }).join('');
+
+    return '<div class="m-card" style="padding:24px 26px">' +
+      '<div style="display:grid;grid-template-columns:minmax(200px,1.15fr) minmax(200px,1fr);gap:34px;align-items:center">' +
+        '<div>' +
+          '<p class="m-lbl">Holdings value (CAD)</p>' +
+          '<p class="hero-big m-num" style="font-size:52px;margin:10px 0 0">' + money(TOTV) + '</p>' +
+          '<p class="m-num m-pos" style="margin:10px 0 0;font-size:14px;font-weight:500">&#9650; ' + signed(TOTP) + ' &middot; ' + pct(TOTP / TOTB * 100) + ' all time</p>' +
+        '</div>' +
+        '<dl class="kv" style="margin:0">' + facts + '</dl>' +
+      '</div></div>';
+  }
+
+  /* ---------- editorial holdings table, shared by C and the hybrid ---------- */
+  function tblEditorial(acct){
+    var list = acctRows(acct);
+    var rows = list.map(function(h, idx){
+      var open = (acct === 'TFSA' && idx === 0);
+      var main = '<tr' + (open ? ' style="border-bottom:none"' : '') + '>' +
+        '<td><span class="m-tkr">' + (open ? '&#9662; ' : '&#9656; ') + esc(h.t) + '</span>' +
+          '<span class="m-sub" style="padding-left:12px">' + h.cur + '</span></td>' +
+        '<td>' + h.q + '</td><td>' + h.px.toFixed(2) + '</td>' +
+        '<td style="font-weight:500">' + money(h.val) + '</td>' +
+        '<td>' + plBar(h) + '</td>' +
+        '<td style="color:var(--l-text2)">' + h.alloc.toFixed(1) + '%<span class="allocbar"><i style="width:' + (h.alloc / SLICES[0].alloc * 100).toFixed(0) + '%"></i></span></td></tr>';
+      if (!open) return main;
+      return main + '<tr><td colspan="6" style="padding:0 0 10px">' +
+        '<div style="display:flex;gap:24px;flex-wrap:wrap;padding:9px 12px;border-radius:6px;background:var(--l-bg2);font-size:10.5px;color:var(--l-text2)">' +
+          '<span>Avg cost <b class="m-num" style="color:var(--l-text)">' + h.avg.toFixed(2) + '</b></span>' +
+          '<span>Book <b class="m-num" style="color:var(--l-text)">' + money(h.book) + '</b></span>' +
+          '<span>Return <b class="m-num m-pos">' + pct(h.plPct) + '</b></span>' +
+          '<span>Price source <b style="color:var(--l-text)">Manual</b></span>' +
+        '</div></td></tr>';
+    }).join('');
+    return '<div class="m-card" style="padding:14px">' +
+      '<div class="m-acct-head"><h3 class="m-h3">' + esc(acct) + ' <span style="color:var(--l-text2);font-weight:400">(' + list.length + ')</span></h3>' +
+        '<span class="m-num" style="font-size:11px;color:var(--l-text2)">' + money(sum(list,'val')) + ' <span class="' + cls(sum(list,'pl')) + '">' + signed(sum(list,'pl')) + '</span></span></div>' +
+      '<div class="m-scroll"><table class="m-tbl" style="min-width:520px"><thead><tr>' +
+        '<th>Holding</th><th>Qty</th><th>Price</th><th>Value &darr;</th><th>P/L</th><th>Alloc</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  }
+
+  /* ================= C: EDITORIAL ================= */
+  function renderC(){
+    // Row-sliced treemap: areas are exactly proportional.
+    var rowsDef = [SLICES.slice(0,3), SLICES.slice(3,6), SLICES.slice(6,8)];
+    var tmap = rowsDef.map(function(row){
+      var rowTotal = row.reduce(function(s,x){ return s + x.alloc; }, 0);
+      var cells = row.map(function(s){
+        return '<div class="cell" style="flex:' + s.alloc.toFixed(2) + ';background:' + COLOR_OF[s.t] + '">' +
+          '<b>' + esc(s.t) + '</b><span>' + s.alloc.toFixed(1) + '% &middot; ' + money(s.val) + '</span></div>';
+      }).join('');
+      return '<div class="trow" style="flex:' + rowTotal.toFixed(2) + '">' + cells + '</div>';
+    }).join('');
+
+    return pageHead('Import holdings') +
+      '<div class="m-stack" style="margin-top:16px">' +
+        heroEditorial() +
+        '<div class="m-card" style="padding:14px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">' +
+            '<h3 class="m-h3">Allocation</h3>' +
+            '<div style="display:flex;gap:4px">' +
+              '<span style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid var(--l-accent);color:var(--l-accent)">By holding</span>' +
+              '<span style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid var(--l-border);color:var(--l-text2)">By account</span>' +
+              '<span style="font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid var(--l-border);color:var(--l-text2)">By currency</span>' +
+            '</div></div>' +
+          '<div class="tmap">' + tmap + '</div>' +
+        '</div>' +
+        tblEditorial('TFSA') + tblEditorial('Non-Registered') +
+      '</div>';
+  }
+
+  /* ================= D: HYBRID (B's allocation, C's holdings) ================= */
+  function renderD(){
+    return pageHead('Import holdings') +
+      '<div class="m-stack" style="margin-top:16px">' +
+        heroEditorial() +
+        allocBars() +
+        tblEditorial('TFSA') + tblEditorial('Non-Registered') +
+      '</div>';
+  }
+
+  document.getElementById('mock-now').innerHTML = renderNow();
+  document.getElementById('mock-a').innerHTML   = renderA();
+  document.getElementById('mock-b').innerHTML   = renderB();
+  document.getElementById('mock-c').innerHTML   = renderC();
+  document.getElementById('mock-d').innerHTML   = renderD();
+
+  /* ---------- theme switcher ---------- */
+  var buttons = document.querySelectorAll('.seg button');
+  Array.prototype.forEach.call(buttons, function(btn){
+    btn.addEventListener('click', function(){
+      Array.prototype.forEach.call(buttons, function(b){ b.setAttribute('aria-pressed', String(b === btn)); });
+      var t = btn.getAttribute('data-t');
+      Array.prototype.forEach.call(document.querySelectorAll('.mock'), function(m){
+        m.setAttribute('data-lt', t);
+      });
+    });
+  });
+})();
+</script>

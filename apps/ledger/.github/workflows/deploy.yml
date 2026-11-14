@@ -1,0 +1,103 @@
+name: Verify and deploy to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  # The whole quality apparatus was local and voluntary before this job
+  # existed: CI built the app and deployed it without running lint, the unit
+  # suite, the e2e suite or any of the three guard scripts. A push to main
+  # shipped on a type-check alone.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # npm ci, not npm install: install re-resolves transitive dependencies
+      # on every run and bypasses the lockfile's integrity hashes, so a
+      # package published between two commits could change what shipped.
+      - name: Install dependencies
+        run: npm ci
+
+      # Both engines, not just chromium: the mobile-narrow and
+      # mobile-landscape projects in playwright.config.ts spread
+      # devices['iPhone 12'], whose defaultBrowserType is webkit. Installing
+      # chromium alone leaves those two projects with no executable on a
+      # clean runner, which fails verify and blocks every deploy.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Verify
+        run: npm run verify
+
+      # test-results/, not the conventional playwright-report/: this project's
+      # reporter is 'list', which only writes to stdout and never creates a
+      # report directory. The diagnostics worth keeping are the traces that
+      # trace: 'retain-on-failure' drops into test-results/, openable with
+      # npx playwright show-trace.
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build_site:
+    needs: verify
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload Artifacts
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build_site
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          # Pages transiently reports deployment_failed right after creation;
+          # the default 5s first poll catches it and aborts a deployment that
+          # actually succeeds. Poll later and tolerate more error reports.
+          reporting_interval: 15000
+          error_count: 15

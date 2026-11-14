@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Compensation | Luxury Dark</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #000000;
+    --bg-card: #080808;
+    --bg-sidebar: #050505;
+    --bg-elevated: #0e0e0e;
+    --bg-input: #0a0a0a;
+    --gold: #c9a84c;
+    --gold-light: #d4b76a;
+    --gold-dim: rgba(201, 168, 76, 0.15);
+    --gold-glow: rgba(201, 168, 76, 0.06);
+    --text-primary: #e8e4dc;
+    --text-secondary: #7a7568;
+    --text-muted: #3d3a34;
+    --border: #1a1916;
+    --border-subtle: #121110;
+    --danger: #a83232;
+    --danger-light: #c44040;
+    --success: #5a8a50;
+    --chart-1: #c9a84c;
+    --chart-2: #8a7a4a;
+    --chart-3: #d4b76a;
+    --chart-4: #a83232;
+    --chart-5: #5a7a8a;
+    --sidebar-width: 260px;
+    --radius: 3px;
+    --font-display: 'Cormorant Garamond', serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  .layout { display: flex; height: 100vh; }
+
+  /* ─── Sidebar ─── */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0;
+  }
+  .logo { padding: 32px 24px 16px; }
+  .logo h1 { font-family: var(--font-display); font-size: 32px; font-weight: 600; color: var(--gold); letter-spacing: 6px; text-transform: uppercase; }
+  .logo p { font-size: 10px; color: var(--text-muted); margin-top: 8px; letter-spacing: 4px; text-transform: uppercase; font-weight: 500; }
+  .logo-divider { height: 1px; background: linear-gradient(90deg, var(--gold), transparent); margin-top: 20px; opacity: 0.3; }
+  .nav { padding: 12px 16px; }
+  .nav-item { display: flex; align-items: center; gap: 14px; padding: 13px 16px; color: var(--text-secondary); font-size: 13px; font-weight: 400; cursor: pointer; transition: all 0.25s ease; margin-bottom: 2px; letter-spacing: 0.5px; border-left: 2px solid transparent; }
+  .nav-item:hover { color: var(--text-primary); background: var(--gold-glow); }
+  .nav-item.active { color: var(--gold); border-left-color: var(--gold); background: var(--gold-glow); }
+  .nav-icon { width: 18px; height: 18px; opacity: 0.6; }
+  .nav-item.active .nav-icon { opacity: 1; }
+  .sidebar-footer { padding: 16px 24px; border-top: 1px solid var(--border); }
+  .theme-label { font-family: var(--font-display); font-size: 12px; color: var(--gold); letter-spacing: 4px; text-transform: uppercase; font-weight: 600; opacity: 0.5; }
+
+  /* ─── Main ─── */
+  .main { flex: 1; overflow-y: auto; padding: 40px; background: var(--bg); }
+  .main::-webkit-scrollbar { width: 4px; }
+  .main::-webkit-scrollbar-track { background: transparent; }
+  .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ─── Header ─── */
+  .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+  .page-header h2 { font-family: var(--font-display); font-size: 32px; font-weight: 500; letter-spacing: 2px; }
+  .page-header p { font-size: 13px; color: var(--text-secondary); margin-top: 6px; letter-spacing: 0.5px; }
+  .header-rule { height: 1px; background: linear-gradient(90deg, var(--gold), transparent 60%); margin-top: 12px; opacity: 0.2; }
+
+  .btn-primary {
+    padding: 12px 24px; border: 1px solid var(--gold); border-radius: var(--radius);
+    font-size: 13px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;
+    background: transparent; color: var(--gold); cursor: pointer; transition: all 0.25s;
+    font-family: var(--font-body);
+  }
+  .btn-primary:hover { background: var(--gold-dim); }
+
+  .btn-outline {
+    padding: 10px 20px; background: transparent; border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 13px; font-weight: 400; color: var(--text-secondary);
+    cursor: pointer; transition: all 0.25s; letter-spacing: 0.5px;
+  }
+  .btn-outline:hover { color: var(--gold); border-color: rgba(201,168,76,0.3); }
+
+  /* ─── Cards ─── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    transition: all 0.3s ease;
+  }
+  .card:hover { border-color: rgba(201, 168, 76, 0.12); background: var(--bg-elevated); }
+
+  .card-label { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 20px; letter-spacing: 2px; }
+  .card-label-sm { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 4px; margin-bottom: 16px; }
+
+  /* ─── Hero Row ─── */
+  .hero-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+
+  /* ─── Toggle group ─── */
+  .toggle-group { display: flex; border: 1px solid var(--border); border-radius: var(--radius); }
+  .toggle-btn {
+    padding: 7px 16px; border: none; font-size: 12px; font-weight: 400;
+    color: var(--text-secondary); background: transparent; cursor: pointer; transition: all 0.2s;
+    letter-spacing: 0.5px; font-family: var(--font-body);
+  }
+  .toggle-btn + .toggle-btn { border-left: 1px solid var(--border); }
+  .toggle-btn.active { background: var(--gold-dim); color: var(--gold); }
+  .toggle-btn:not(.active):hover { color: var(--text-primary); }
+
+  .donut-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
+  .donut-center .amount { font-family: var(--font-display); font-size: 36px; font-weight: 600; color: var(--gold); }
+  .donut-center .label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; letter-spacing: 1px; }
+
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border-subtle); }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { font-size: 13px; color: var(--text-secondary); }
+  .stat-value { font-size: 14px; font-weight: 500; letter-spacing: 0.5px; }
+
+  .comp-item { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; }
+  .comp-item + .comp-item { border-top: 1px solid var(--border-subtle); }
+  .comp-left { display: flex; align-items: center; gap: 12px; }
+  .comp-dot { width: 8px; height: 8px; border-radius: 1px; }
+  .comp-name { font-size: 13px; color: var(--text-secondary); }
+  .comp-value { font-size: 14px; font-weight: 500; letter-spacing: 0.5px; }
+  .comp-pct { font-size: 11px; color: var(--text-muted); margin-left: 10px; }
+
+  .chart-container { position: relative; width: 100%; margin-top: 12px; }
+
+  /* ─── Comparison table ─── */
+  .compare-grid { width: 100%; border-collapse: collapse; }
+  .compare-grid th {
+    padding: 10px 12px; text-align: center; font-size: 11px; font-weight: 500;
+    color: var(--text-secondary); text-transform: uppercase; letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-body);
+  }
+  .compare-grid th:first-child { text-align: left; }
+  .compare-grid th:last-child { text-align: right; }
+  .compare-grid td { padding: 14px 12px; text-align: center; font-size: 14px; border-bottom: 1px solid var(--border-subtle); }
+  .compare-grid td:first-child { text-align: left; color: var(--text-secondary); }
+  .compare-grid td:last-child { text-align: right; }
+  .compare-grid tr:last-child td { border-bottom: none; font-weight: 600; }
+
+  .delta-badge { display: inline-block; font-size: 12px; font-weight: 500; padding: 3px 12px; border-radius: var(--radius); border: 1px solid; letter-spacing: 0.5px; }
+  .delta-badge.positive { border-color: rgba(90,138,80,0.3); color: var(--success); background: rgba(90,138,80,0.06); }
+  .delta-badge.negative { border-color: rgba(168,50,50,0.3); color: var(--danger-light); background: rgba(168,50,50,0.06); }
+  .delta-badge.neutral { border-color: var(--border); color: var(--text-muted); }
+
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-label { font-size: 11px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0.5px; }
+  .form-input {
+    background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 9px 12px; font-size: 14px; color: var(--text-primary); font-family: var(--font-body); outline: none; transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: rgba(201,168,76,0.3); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .section-gap { margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div>
+      <div class="logo"><h1>Ledger</h1><p>Private Wealth</p><div class="logo-divider"></div></div>
+      <nav class="nav">
+        <div class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Dashboard
+        </div>
+        <div class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/></svg>
+          Budgeting
+        </div>
+        <div class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Investments
+        </div>
+        <div class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M2 12h20"/></svg>
+          Projections
+        </div>
+        <div class="nav-item active">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+          Compensation
+        </div>
+      </nav>
+    </div>
+    <div class="sidebar-footer"><div class="theme-label">◆ Luxury Dark</div></div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h2>Total Compensation</h2>
+        <p>Analyze your base salary, bonuses, equity, and benefits to understand your true earning potential.</p>
+        <div class="header-rule"></div>
+      </div>
+      <button class="btn-primary">Edit Package</button>
+    </div>
+
+    <div class="hero-row section-gap">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+          <span class="card-label-sm">Compensation Breakdown</span>
+          <div style="display:flex; gap:10px;">
+            <div class="toggle-group">
+              <button class="toggle-btn active">Current Year</button>
+              <button class="toggle-btn">Next 1 Year</button>
+            </div>
+            <div class="toggle-group">
+              <button class="toggle-btn active">Annualized</button>
+              <button class="toggle-btn">Monthly</button>
+            </div>
+          </div>
+        </div>
+        <div style="position:relative; height:320px;">
+          <canvas id="compPieChart"></canvas>
+          <div class="donut-center">
+            <div class="amount">$218,400</div>
+            <div class="label">Total Annual</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label-sm">Package Details</div>
+        <div class="stat-row"><span class="stat-label">Current Stock Price</span><span class="stat-value">$185.40</span></div>
+        <div class="stat-row"><span class="stat-label">Blended Base Salary</span><span class="stat-value">$135,000</span></div>
+        <div class="stat-row"><span class="stat-label">Target Bonus</span><span class="stat-value">20%</span></div>
+        <div class="stat-row"><span class="stat-label">RSU Grants</span><span class="stat-value">2 Active</span></div>
+        <div class="stat-row"><span class="stat-label">Benefits Match</span><span class="stat-value">5% RRSP, 10% ESPP</span></div>
+        <div style="margin-top:20px;">
+          <div class="comp-item"><div class="comp-left"><div class="comp-dot" style="background:var(--chart-1);"></div><span class="comp-name">Base Salary</span></div><span class="comp-value">$135,000<span class="comp-pct">62%</span></span></div>
+          <div class="comp-item"><div class="comp-left"><div class="comp-dot" style="background:var(--chart-2);"></div><span class="comp-name">Bonus</span></div><span class="comp-value">$27,000<span class="comp-pct">12%</span></span></div>
+          <div class="comp-item"><div class="comp-left"><div class="comp-dot" style="background:var(--chart-5);"></div><span class="comp-name">RSU</span></div><span class="comp-value">$40,000<span class="comp-pct">18%</span></span></div>
+          <div class="comp-item"><div class="comp-left"><div class="comp-dot" style="background:var(--chart-3);"></div><span class="comp-name">ESPP</span></div><span class="comp-value">$10,800<span class="comp-pct">5%</span></span></div>
+          <div class="comp-item"><div class="comp-left"><div class="comp-dot" style="background:var(--chart-4);"></div><span class="comp-name">RRSP Match</span></div><span class="comp-value">$5,600<span class="comp-pct">3%</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card section-gap">
+      <div class="card-label-sm">Equity Vesting Schedule</div>
+      <div class="chart-container" style="height:280px;"><canvas id="vestingChart"></canvas></div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+      <button class="btn-outline">Compare Another Offer</button>
+    </div>
+    <div class="card">
+      <div class="card-label-sm">Offer Comparison</div>
+      <div style="display:grid; grid-template-columns: 1fr 2fr; gap: 32px;">
+        <div>
+          <div class="card-label" style="font-size:14px; font-family: var(--font-display); letter-spacing:2px;">Compare Offer</div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div class="form-group"><label class="form-label">Company Stock Price ($)</label><input class="form-input" type="text" value="220.00" /></div>
+            <div class="form-group"><label class="form-label">Base Salary ($)</label><input class="form-input" type="text" value="150,000" /></div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Cash Bonus (%)</label><input class="form-input" type="text" value="15" /></div>
+              <div class="form-group"><label class="form-label">Bonus Month</label><input class="form-input" type="text" value="Dec" /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">ESPP (%)</label><input class="form-input" type="text" value="10" /></div>
+              <div class="form-group"><label class="form-label">Discount (%)</label><input class="form-input" type="text" value="15" /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">RRSP Match (%)</label><input class="form-input" type="text" value="6" /></div>
+              <div class="form-group"><label class="form-label">Match Cap ($)</label><input class="form-input" type="text" value="8,000" /></div>
+            </div>
+            <button class="btn-primary" style="width:100%; margin-top:8px;">Calculate Comparison</button>
+          </div>
+        </div>
+        <div style="border-left: 1px solid var(--border); padding-left:32px;">
+          <div class="card-label" style="font-size:14px; font-family: var(--font-display); letter-spacing:2px;">Results</div>
+          <table class="compare-grid">
+            <thead><tr><th></th><th>Current</th><th>Compare</th><th>Delta</th></tr></thead>
+            <tbody>
+              <tr><td>Base Salary</td><td>$135,000</td><td>$150,000</td><td><span class="delta-badge positive">+$15,000</span></td></tr>
+              <tr><td>Annual Bonus</td><td>$27,000</td><td>$22,500</td><td><span class="delta-badge negative">−$4,500</span></td></tr>
+              <tr><td>ESPP Benefit</td><td>$10,800</td><td>$12,000</td><td><span class="delta-badge positive">+$1,200</span></td></tr>
+              <tr><td>RRSP Match</td><td>$5,600</td><td>$8,000</td><td><span class="delta-badge positive">+$2,400</span></td></tr>
+              <tr><td>RSU (Annual)</td><td>$40,000</td><td>$0</td><td><span class="delta-badge negative">−$40,000</span></td></tr>
+              <tr><td>Total Compensation</td><td>$218,400</td><td>$192,500</td><td><span class="delta-badge negative">−$25,900</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  Chart.defaults.color = '#7a7568';
+  Chart.defaults.borderColor = '#1a1916';
+  Chart.defaults.font.family = "'Inter', sans-serif";
+
+  new Chart(document.getElementById('compPieChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Base Salary', 'Bonus', 'RSU', 'ESPP', 'RRSP'],
+      datasets: [{
+        data: [135000, 27000, 40000, 10800, 5600],
+        backgroundColor: ['#c9a84c','#8a7a4a','#5a7a8a','#d4b76a','#a83232'],
+        borderWidth: 0, spacing: 3,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '72%',
+      plugins: { legend: { display: true, position: 'bottom', labels: { usePointStyle: true, pointStyle: 'rect', padding: 16, font: { size: 11 } } } }
+    }
+  });
+
+  new Chart(document.getElementById('vestingChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      datasets: [
+        { label: 'Initial Grant', data: [0,0,5000,0,0,5000,0,0,5000,0,0,5000], backgroundColor: 'rgba(201,168,76,0.5)', borderColor: '#c9a84c', borderWidth: 1, borderRadius: 2, borderSkipped: false, stack: 'a' },
+        { label: 'Refresh Grant', data: [0,0,0,3000,0,0,3000,0,0,3000,0,0], backgroundColor: 'rgba(90,122,138,0.4)', borderColor: '#5a7a8a', borderWidth: 1, borderRadius: 2, borderSkipped: false, stack: 'a' },
+        { label: 'Cumulative', data: [0,0,5000,8000,8000,13000,16000,16000,21000,24000,24000,29000], type: 'line', borderColor: '#c9a84c', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y1' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'rect', padding: 16, font: { size: 11 } } } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, ticks: { callback: v => '$' + (v/1000) + 'k' }, grid: { color: '#1a1916' } },
+        y1: { position: 'right', beginAtZero: true, ticks: { callback: v => '$' + (v/1000) + 'k' }, grid: { display: false } }
+      }
+    }
+  });
+</script>
+</body>
+</html>

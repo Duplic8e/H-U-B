@@ -1,0 +1,593 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent: var(--accent);
+  /* Unvested equity: the running theme's accent, muted toward the secondary
+     text tone so it reads as the theme's colour without being mistaken for
+     the pure accent that chart-1 already gives the first RSU grant. Defined
+     once: var(--accent) resolves against whichever [data-theme] is active. */
+  --unvested: color-mix(in srgb, var(--accent) 62%, var(--text-secondary));
+  --color-border: var(--border-color);
+  --color-border-strong: var(--border-strong);
+  --color-error: var(--error);
+  --color-success: var(--success);
+
+  /* System fonts only: San Francisco on Apple devices, the platform UI
+     font elsewhere. No web fonts to download. */
+  --font-sans: var(--font-family-body);
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  --font-serif: var(--font-family-display);
+  --font-display: var(--font-family-display);
+
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --shadow-card: var(--card-shadow);
+}
+
+/* Desktop chrome needs width for the 256px sidebar and height for its
+   nav list plus settings dock, which together need 462px. A phone in
+   landscape clears the width test and fails the height test, so it keeps
+   the mobile top bar and bottom tab bar instead of losing Settings off
+   the bottom of a sidebar that cannot scroll into view. Kept in sync by
+   hand with useIsDesktop in src/hooks/useMediaQuery.ts.
+
+   Anything whose visibility must agree with which branch `Sheet` renders
+   must use `desktop:`, never `md:`. `md:` is width only, so between 768px
+   wide and 500px tall (a landscape Pro Max phone, a short desktop window, or
+   a desktop browser zoomed past 175%) `md:` matches while `desktop:` does
+   not, and both a sheet header and a modal header render at once. */
+@custom-variant desktop (@media (min-width: 768px) and (min-height: 500px));
+
+/* The width at which the holdings table's min-w-[560px] first clears the
+   256px sidebar and the page and card padding: 256 + 560 + 96 = 912. The
+   96 is not 64: the main content area is `px-4 sm:px-8`, and `sm` (640px)
+   is already active at every width in question, so its real padding is
+   32px a side (64px total), plus the card's own p-4 (16px a side, 32px
+   total). Below this, the card layout is used instead. `desktop` (768) is
+   not the same question: that is where the sidebar appears, not where a
+   560px table fits beside it. */
+@custom-variant wide (@media (min-width: 912px));
+
+:root {
+  /* The iOS-style pair. :root is the light palette so the first paint
+     before App sets data-theme is never unstyled. */
+  --bg-primary: #f2f2f7;      /* iOS systemGroupedBackground */
+  --bg-secondary: #ffffff;    /* iOS secondarySystemGroupedBackground */
+  --text-primary: #000000;    /* label */
+  --text-secondary: #636366;  /* secondaryLabel, darkened for AA on the grouped background */
+  --accent: #0058b0;          /* systemBlue, darkened so accent text clears AA on its own 15% tint */
+  --border-color: #e5e5ea;    /* separator */
+  --border-strong: #8a8a8e;   /* control outlines, 3:1 or better on white */
+  --error: #d70015;           /* accessible systemRed */
+  --success: #1f7a35;         /* accessible systemGreen */
+  --chart-1: #0058b0;
+  --chart-2: #af52de;
+  --chart-3: #ff9500;
+  --chart-4: #ff2d55;
+  --chart-5: #30b0c7;
+  --chart-6: #ff3b30;
+
+  --font-family-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --card-bg: #ffffff;
+  --card-border: #ffffff;
+  --card-shadow: none;
+  --card-blur: none;
+  /* Navigation and tab bars: the iOS translucent material. */
+  --bar-bg: rgba(249, 249, 249, 0.86);
+  --bar-blur: saturate(180%) blur(20px);
+  --dock-bg: rgba(242, 242, 247, 0.86);
+  --dock-blur: saturate(180%) blur(20px);
+  --dropdown-bg: #ffffff;
+
+  color-scheme: light;
+  --calendar-filter: invert(0);
+
+  /* iPhone notch / Dynamic Island and home indicator. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+[data-theme='light'] {
+  --bg-primary: #f2f2f7;      /* iOS systemGroupedBackground */
+  --bg-secondary: #ffffff;    /* iOS secondarySystemGroupedBackground */
+  --text-primary: #000000;    /* label */
+  --text-secondary: #636366;  /* secondaryLabel, darkened for AA on the grouped background */
+  --accent: #0058b0;          /* systemBlue, darkened so accent text clears AA on its own 15% tint */
+  --border-color: #e5e5ea;    /* separator */
+  --border-strong: #8a8a8e;   /* control outlines, 3:1 or better on white */
+  --error: #d70015;           /* accessible systemRed */
+  --success: #1f7a35;         /* accessible systemGreen */
+  --chart-1: #0058b0;
+  --chart-2: #af52de;
+  --chart-3: #ff9500;
+  --chart-4: #ff2d55;
+  --chart-5: #30b0c7;
+  --chart-6: #ff3b30;
+
+  --font-family-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --card-bg: #ffffff;
+  --card-border: #ffffff;
+  --card-shadow: none;
+  --card-blur: none;
+  /* Navigation and tab bars: the iOS translucent material. */
+  --bar-bg: rgba(249, 249, 249, 0.86);
+  --bar-blur: saturate(180%) blur(20px);
+  --dock-bg: rgba(242, 242, 247, 0.86);
+  --dock-blur: saturate(180%) blur(20px);
+  --dropdown-bg: #ffffff;
+
+  color-scheme: light;
+  --calendar-filter: invert(0);
+}
+
+[data-theme='dark'] {
+  --bg-primary: #000000;      /* iOS systemGroupedBackground (dark) */
+  --bg-secondary: #1c1c1e;    /* secondarySystemGroupedBackground (dark) */
+  --text-primary: #ffffff;
+  --text-secondary: #98989f;
+  --accent: #409cff;          /* iOS accessible systemBlue (dark): AA on its own tint over cards */
+  --border-color: #38383a;
+  --border-strong: #8e8e93;
+  --error: #ff453a;
+  --success: #30d158;
+  --chart-1: #409cff;
+  --chart-2: #bf5af2;
+  --chart-3: #ff9f0a;
+  --chart-4: #ff375f;
+  --chart-5: #64d2ff;
+  --chart-6: #ff453a;
+
+  --font-family-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --card-bg: #1c1c1e;
+  --card-border: #1c1c1e;
+  --card-shadow: none;
+  --card-blur: none;
+  --bar-bg: rgba(22, 22, 23, 0.82);
+  --bar-blur: saturate(180%) blur(20px);
+  --dock-bg: rgba(0, 0, 0, 0.82);
+  --dock-blur: saturate(180%) blur(20px);
+  --dropdown-bg: #2c2c2e;
+
+  color-scheme: dark;
+  --calendar-filter: invert(0.8) hue-rotate(180deg);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-body);
+  /* Money lines up in columns, like the Wallet and Stocks apps. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  letter-spacing: -0.01em;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-display);
+  letter-spacing: -0.02em;
+}
+
+.themed-card {
+  background-color: var(--card-bg);
+  border-radius: 14px;
+  /* A theme may layer a gradient over its flat fill. `background-color`
+     cannot hold one, so a gradient assigned to --card-bg alone would be an
+     invalid background-color and silently drop the card's fill entirely.
+     Every theme that does not define --card-gradient falls through to
+     `none` and paints exactly as it did before. */
+  background-image: var(--card-gradient, none);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
+}
+
+/* Floating menus (selects, date pickers) - always opaque, never blurred,
+   so they stay readable over gradient/glass backgrounds. */
+.themed-menu {
+  background-color: var(--dropdown-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+}
+
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-dropdown-in {
+  animation: dropdown-in 120ms ease-out;
+  transform-origin: top;
+}
+
+/* PageTransition's route-change fade. Was AnimatePresence + motion.div. */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 180ms ease-out;
+}
+
+/* Sheet's open/close transitions. Was the old animation library's
+ * initial/animate/exit; the reduced-motion override lives beside the
+ * Task 12 media query below.
+ *
+ * Exit still uses a transition: the panel is already mounted and painted
+ * when data-state flips to 'closed', so the browser has a real "before" style
+ * to interpolate from. Entry is the opposite case: the panel is INSERTED
+ * already carrying data-state="open" (see useDeferredUnmount), so there is
+ * no prior style for a transition to start from and it never runs, same
+ * class of bug as .animate-fade-in below. Keyframe animations DO run on
+ * insertion, so the open state gets its own animation instead of relying on
+ * the transition. Durations match the transitions they stand in for. */
+[data-sheet='scrim'] {
+  transition: opacity 150ms ease;
+  opacity: 1;
+}
+[data-sheet='scrim'][data-state='closed'] {
+  opacity: 0;
+}
+[data-sheet='scrim'][data-state='open'] {
+  animation: sheet-scrim-in 150ms ease;
+}
+
+[data-sheet='panel-mobile'] {
+  transition: transform 220ms ease-out;
+  transform: translateY(0);
+}
+[data-sheet='panel-mobile'][data-state='closed'] {
+  transform: translateY(100%);
+}
+[data-sheet='panel-mobile'][data-state='open'] {
+  animation: sheet-panel-mobile-in 220ms ease-out;
+}
+
+[data-sheet='panel-desktop'] {
+  transition: opacity 150ms ease, transform 150ms ease;
+  opacity: 1;
+  transform: scale(1);
+}
+[data-sheet='panel-desktop'][data-state='closed'] {
+  opacity: 0;
+  transform: scale(0.98);
+}
+[data-sheet='panel-desktop'][data-state='open'] {
+  animation: sheet-panel-desktop-in 150ms ease;
+}
+
+@keyframes sheet-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sheet-panel-mobile-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes sheet-panel-desktop-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+select option {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+/* Native number inputs (if any remain) must not show spinner arrows. */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: var(--calendar-filter);
+  cursor: pointer;
+}
+
+/* iOS Safari zooms the page whenever a focused field computes below 16px,
+   and it never zooms back out, so the user is left panning a magnified
+   layout. Every input in this app was 12px to 15px. The floor is mobile
+   only: the desktop sizes are deliberate and unaffected. Checkboxes and
+   radios are excluded because their font-size does not drive the control
+   size and they are handled by the Checkbox component instead.
+
+   The query is `(max-width: 767px), (max-height: 499px)`, not a plain
+   max-width, because it must be the exact negation of the `desktop`
+   custom variant in this file (min-width: 768px AND min-height: 500px).
+   A landscape phone (e.g. 844x390) fails the height half of `desktop` and
+   so renders the mobile top/bottom bar, but a plain `max-width: 767px`
+   query would miss it entirely and leave its inputs at their unfloored
+   size. Keep this in sync with the tap-target floor below and with the
+   `desktop` variant; all three must partition the viewport the same way. */
+@media (max-width: 767px), (max-height: 499px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Tap-target floor. Apple and Android both put the minimum comfortable
+   touch target at 44px; WCAG 2.5.5 agrees and 2.5.8 sets a hard floor of
+   24px. The audit found 67 controls between 18px and 37px tall, spread
+   over 30 files with no shared primitive, so this is enforced here rather
+   than at each call site: a new 26px pill in a new component is covered
+   automatically. Mobile only, so desktop density is unchanged.
+
+   min-width is deliberately not applied to <a>, because a link inside a
+   sentence must stay inline and would otherwise stretch the line box.
+   Anything that genuinely must stay smaller opts out with .tap-exempt.
+
+   Same compound query as the input floor above, for the same reason: it
+   must be the exact negation of `desktop`, or a landscape phone (wide
+   enough to fail a plain max-width check, short enough to still show the
+   mobile bars) keeps its sub-44px controls. */
+@media (max-width: 767px), (max-height: 499px) {
+  button:not(.tap-exempt),
+  [role='button']:not(.tap-exempt),
+  summary:not(.tap-exempt) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  a[href]:not(.tap-exempt),
+  input:not([type='hidden']):not([type='checkbox']):not(.tap-exempt),
+  textarea:not(.tap-exempt),
+  select:not(.tap-exempt) {
+    min-height: 44px;
+  }
+}
+
+/* `--border-color` is a decorative divider: it separates card edges and list
+   rows, which WCAG does not require to reach 3:1. A control whose boundary is
+   the only thing marking it as a control does have to, under 1.4.11, and the
+   decorative token measured 1.18:1 to 1.24:1 across all five themes. Anything
+   the user is meant to click gets `.control-border` instead. */
+.control-border {
+  border-color: var(--border-strong);
+}
+
+/* Row actions used to be revealed by hover alone, gated on width. That hid
+   them from two groups at once: a keyboard user tabbing into an opacity-0
+   button saw no focus indicator at all (WCAG 2.4.7), and a touch tablet at
+   768px never produces hover, so the controls were permanently invisible
+   there. Gate the hiding on real hover capability, and always reveal on
+   focus. */
+@media (hover: hover) and (pointer: fine) {
+  .reveal-on-hover {
+    opacity: 0;
+  }
+  .group:hover .reveal-on-hover,
+  .group:focus-within .reveal-on-hover,
+  .reveal-on-hover:focus-visible {
+    opacity: 1;
+  }
+  /* These buttons also carry transition-all/transition-opacity for the
+     hover fade, which is fine for a mouse but means a keyboard user
+     tabbing in would sit through the same 150ms fade with no visible
+     control the instant focus lands, failing WCAG 2.4.7 for that first
+     frame. A row's actions share one .group, so tabbing to the first one
+     (say Edit) opens both it and its sibling Delete together, before
+     Delete itself is ever :focus-visible, meaning a duration override
+     scoped only to :focus-visible arrives too late for the sibling. Zero
+     the duration for the whole group the moment any descendant is
+     focused, so every action in the row reveals instantly, and keep the
+     animated fade for plain mouse hover, where nothing is focused. */
+  .group:focus-within .reveal-on-hover,
+  .reveal-on-hover:focus-visible {
+    transition-duration: 0s;
+  }
+}
+
+/* One ring for the whole app. Nine different treatments used to be reachable
+   in a single tab-through, and which one you got depended on whether the
+   control was active, so two buttons in one segmented control ringed
+   differently. `!important` is deliberate and is the only one in this file:
+   the alternative is auditing every focus-visible:ring-* and
+   focus:border-accent utility at every call site and hoping none returns.
+
+   Declared as longhands, not the `outline` shorthand: the shorthand
+   combined with var() and !important resolves each sub-property to an
+   empty value in this browser's cascade (confirmed via CDP
+   getMatchedStylesForNode), silently dropping the whole declaration on
+   some elements. Longhands sidestep that.
+
+   Almost every control here also carries Tailwind's `transition-colors` (or
+   `transition-all`), which lists `outline-color` among the properties it
+   animates. With that transition left running, this rule's `!important`
+   still wins the cascade, but the browser then tries to animate
+   outline-color from the control's own currentColor toward the accent
+   color, confirmed via CDP (getComputedStyleForNode) to simply never
+   finish: the used value stays pinned at the pre-focus color indefinitely,
+   so the ring silently kept whatever hue the control already had instead
+   of turning the accent color, exactly reproducing the "nine treatments"
+   bug this rule exists to close, just relocated from the cascade to the
+   transition engine. Disabling `transition` outright also stopped that,
+   but it silenced every other transition on the element for as long as it
+   held focus, so a hover fade paired with focus (transition-colors plus
+   hover:) would snap instead of animate while tabbed to. Listing
+   `transition-property` instead disables only outline-color: the value
+   below is Tailwind's own default transition-property list (see
+   node_modules/tailwindcss/dist/lib.js) with outline-color removed, so
+   every other property Tailwind would otherwise transition, including the
+   background-color and border-color a hover fade relies on, keeps
+   transitioning normally even while focused. Revisit this list if
+   Tailwind's default ever changes. Not itself `!important` because it does
+   not need to be: this rule is unlayered, and Tailwind's utilities live in
+   `@layer utilities`, so an unlayered normal declaration already outranks a
+   layered one regardless of specificity or source order. */
+:focus-visible {
+  outline-style: solid !important;
+  outline-width: 2px !important;
+  outline-color: var(--accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: none;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, content-visibility, overlay, pointer-events;
+}
+
+/* Two semantic tiers replace the raw 10px and 11px arbitrary values. Both
+   step up one pixel on phones, where the audit found the smallest tier
+   carrying real data (dates, category names, pacing hints) and not just
+   decoration, and step back down on desktop where the original sizes were
+   deliberate. Enforced by scripts/check-type-scale.mjs.
+
+   The inner query matches the `desktop` custom variant exactly (width AND
+   height), not a plain min-width, so a landscape phone keeps the larger
+   mobile size instead of falling back to the tighter desktop tier the
+   moment its width alone crosses 768px. */
+@utility text-micro {
+  font-size: 11px;
+  @media (min-width: 768px) and (min-height: 500px) {
+    font-size: 10px;
+  }
+}
+
+@utility text-meta {
+  font-size: 12px;
+  @media (min-width: 768px) and (min-height: 500px) {
+    font-size: 11px;
+  }
+}
+
+/* The phone tab strip scrolls sideways when its labels do not fit. The
+   scrollbar is hidden because the fade on the right edge already says there
+   is more, and a visible bar would sit under the underline indicator. */
+.tabs-scroll {
+  scrollbar-width: none;
+}
+.tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+.tabs-fade-end {
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+
+/* Phones show no scrollbar on the page scroller: touch scrolling needs no
+   handle, and the bar ate width from a 320px layout. The query is the exact
+   inverse of the `desktop` variant so desktop keeps its scrollbar. */
+@media not all and (min-width: 768px) and (min-height: 500px) {
+  .phone-no-scrollbar {
+    scrollbar-width: none;
+  }
+  .phone-no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Animations for specialized backgrounds */
+@keyframes float-slow-1 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(40px, -60px) scale(1.15); }
+  66% { transform: translate(-30px, 30px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes float-slow-2 {
+  0% { transform: translate(0px, 0px) scale(1.1); }
+  50% { transform: translate(-50px, 50px) scale(0.95); }
+  100% { transform: translate(0px, 0px) scale(1.1); }
+}
+
+.animate-float-1 {
+  animation: float-slow-1 18s infinite alternate ease-in-out;
+}
+
+.animate-float-2 {
+  animation: float-slow-2 22s infinite alternate ease-in-out;
+}
+
+/* Sheet, PageTransition and AnimatedNumber each respect reduced motion on
+   their own now (a hook or a direct matchMedia check, no animation library
+   involved), but the aurora and glass background blobs' keyframes did not,
+   so they kept drifting behind every screen for a user who had asked the
+   whole system to stop moving. Paused rather than removed: the blobs are
+   the theme's identity, and a paused animation still paints its current
+   frame. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-1,
+  .animate-float-2 {
+    animation-play-state: paused;
+  }
+
+  .animate-fade-in {
+    animation: none;
+  }
+
+  /* Was the old animation library's initial/animate/exit on Sheet. Same durations. */
+  [data-sheet] {
+    transition-duration: 0ms;
+  }
+  [data-sheet='panel-mobile'][data-state='closed'] {
+    transform: none;
+    opacity: 0;
+  }
+  /* The entry animations above are keyframes, not transitions, so
+     transition-duration: 0ms above does nothing to them: they need their own
+     animation: none, at matching specificity so it wins over the rules that
+     declare the animation. */
+  [data-sheet='scrim'][data-state='open'],
+  [data-sheet='panel-mobile'][data-state='open'],
+  [data-sheet='panel-desktop'][data-state='open'] {
+    animation: none;
+  }
+}
+
+/* Custom Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-secondary);
+}
+
+/* Focus rings: never on mouse click. The one accent outline for every
+   focusable element lives with the other unlayered rules above (search "One
+   ring for the whole app"). A component that also recolours its own border
+   on focus (focus:border-accent) keeps that border change; it now gets the
+   same outline as everything else on top of it, not instead of it. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Phone top bar (rule 1 of docs/mobile-layout-rules.md): while a page has
+   put its title into the slot, the Ledger mark and wordmark give way to it. */
+header:has(> [data-topbar-slot] > *) > [data-topbar-brand] {
+  display: none;
+}
+
+/* Compact balances reach the card edge until row actions are needed.
+   Touch controls remain visible; keyboard focus expands the action area instantly. */
+@media (min-width: 768px) and (min-height: 500px) and (hover: hover) and (pointer: fine) {
+  .account-row-actions { width: 0; overflow: hidden; }
+  .group:hover .account-row-actions,
+  .group:focus-within .account-row-actions { width: 64px; overflow: visible; }
+}

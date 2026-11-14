@@ -1,0 +1,44 @@
+# Salary & Tax: 2026 audit and remediation status
+
+Original audit: 2026-09-26. Updated: 2026-09-27. Scope: annual employee salary estimates in `src/utils/finance/canadaTax.ts`, the Salary & Tax planner, and users of the shared calculator. The dollar effects below describe the original code. They are isolated historical examples, not discrepancies in the updated branch or estimates of a filed return.
+
+**Current state:** F01 through F09 were implemented and reviewed on `codex/salary-tax-p1` at `749f2c9` and are included in Ledger 0.10.1-beta. V01 is resolved in favor of the existing Manitoba brackets, with no code change.
+
+## Original priority scale
+
+- **P1, high:** A confirmed omission or error affecting common gross-to-net estimates or a systemic gap in the annual model.
+- **P2, medium:** A confirmed province, income-band, or optional-input error, including an error large for some users.
+- **Verification hold:** Official sources conflict, so a code change needs further source verification.
+
+## Findings and completed changes
+
+| ID | Original finding and isolated effect | Completed change on `codex/salary-tax-p1` |
+| --- | --- | --- |
+| F01, P1 | Quebec used CPP instead of QPP and omitted employee QPIP. At $100,000 gross pay, these two items understated mandatory contributions by $678.85. | `0480956` adds 2026 QPP and QPIP while retaining Quebec EI. The annual model and breakdown identify QPP and QPIP. [Revenu Québec rates](https://www.revenuquebec.ca/en/businesses/source-deductions-and-employer-contributions/employers-principal-changes-for-2026/). |
+| F02, P1 | Ontario Health Premium was absent. At $100,000 taxable income, the omitted premium was $750 before other tax effects. | `57e5a9c` includes the annual premium in provincial tax and net pay, with thresholds represented in marginal-rate calculations. [CRA Ontario guide](https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4032-payroll-deductions-tables/t4032on-jan/t4032on-january-general-information.html). |
+| F03, P1, product scope | The old tax total applied only basic personal amount credits. It omitted standard employee credits, the deduction for additional CPP/QPP contributions, and applicable provincial reductions. There was no single defensible net-pay correction. | `82625f6` and `57e5a9c` add the modeled standard credits, pension-contribution deduction, and provincial adjustments. Later P1 commits align displays, compensation consumers, and RRSP marginal slices. The UI describes an annual employee estimate rather than a full tax return. [CRA 2026 formulas](https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan/t4127-jan-payroll-deductions-formulas-computer-programs.html). |
+| F04, P2 | Manitoba's basic personal amount did not phase out. At or above $400,000 net income, the old model could over-credit provincial tax by $1,704.24. | `0c05c1e` phases $15,780 to zero from $200,000 to $400,000 and adds both boundaries to RRSP marginal slices. [CRA Manitoba formula](https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan/t4127-jan-payroll-deductions-formulas-computer-programs.html). |
+| F05, P2 | PEI's fourth bracket ended at $142,250 instead of $142,520, and its 20% band above $200,000 was missing. At $250,000 taxable income, old PEI bracket tax was $496.27 too low. | `486df18` uses the 2026 annual $142,520 boundary and 20% top band. [PEI tax rates](https://www.princeedwardisland.ca/en/information/finance-and-affordability/provincial-personal-income-tax). |
+| F06, P2 | Newfoundland and Labrador used an $11,188 basic personal amount instead of the 2026 annual $13,094 amount. Where fully usable, provincial tax was $165.82 too high. | `486df18` uses $13,094. The July $15,000 payroll catch-up amount is not used for annual tax. [CRA July 2026 formulas](https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html). |
+| F07, P2 | Yukon's basic personal amount stayed at $16,452. At or above $258,482 net income, provincial tax could be up to $103.87 too low from this credit alone. | `0c05c1e` follows the federal phaseout to $14,829. [CRA Yukon formula](https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan/t4127-jan-payroll-deductions-formulas-computer-programs.html). |
+| F08, P2, presentation | Effective rate divided income tax by income after RRSP/FHSA contributions, making it exceed tax divided by gross pay when contributions were entered. | P1 aligns the displayed rate with gross annual income; `749f2c9` adds an RRSP/FHSA regression test. |
+| F09, P2, input estimate | Estimated RRSP room used current salary even though CRA room depends on prior-year income and other adjustments. Room and tax savings could be wrong, with no fixed dollar effect. | `749f2c9` removes the guess. A positive saved `rrspRoom` is an entered CRA deduction limit; zero means unknown and shows no room estimate or progress. An entered limit caps the modeled deduction, while the full contribution remains a cash outflow. Without a limit, the estimate explicitly assumes deductibility. [CRA deduction-limit explanation](https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/rrsps-related-plans/contributing-a-rrsp-prpp/contributions-affect-your-rrsp-prpp-deduction-limit.html). |
+
+P1 also corrected the BC annual tax-reduction cutoff and marginal crossover behavior, including RRSP slice zero crossings (`75973a9`, `10a9c5b`, `feb6d68`). July prorated payroll rates for BC, PEI, and NL are not substituted into annual calculations. [CRA July 2026 formulas](https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html).
+
+## V01: Manitoba brackets, resolved without a code change
+
+The original audit held the Manitoba thresholds because [CRA's general 2026 rate page](https://www.canada.ca/en/revenue-agency/services/tax/individuals/tax-rates-brackets/current-year.html) lists $47,564 and $101,200, while its [2026 Manitoba payroll guide](https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4032-payroll-deductions-tables/t4032mb-jan/t4032mb-january-general-information.html) lists $47,000 and $100,000. [Manitoba's Income Tax Act, section 4.1(2)](https://web2.gov.mb.ca/laws/statutes/ccsm/i010.php) sets $47,000 and $100,000 for 2024 and later; section 4.1(3) indexes only the earlier 2017 to 2023 thresholds. The statute and Manitoba-specific 2026 guide support the calculator's existing $47,000 and $100,000 thresholds. Keep them unchanged. The conflicting general CRA page is a source discrepancy, not a confirmed calculator defect.
+
+## Verification and release state
+
+- P1 and P2 task reviews and final branch reviews found no remaining findings within the implementation scope. The combined 0.10.1-beta release passed `npm run verify`: lint, 1,494 unit tests, TypeScript/Vite build, bundle budget, eager graph, type-scale checks, and all 188 Playwright tests. `git diff --check` also passed for the salary-tax branch.
+- P2 browser spot checks passed for PEI at $250,000, NL at $100,000, Manitoba at $300,000 and $405,000, Yukon at $220,000, and Ontario at $100,000 with RRSP/FHSA and an entered CRA limit. Federal and provincial rows reconciled to total tax; gross pay reconciled to net pay plus tax and employee contributions. Unknown, remaining, exhausted, and excess RRSP-limit states displayed as intended.
+- The two unrelated transaction-list browser tests that failed on the salary-tax branch pass in 0.10.1-beta after `297ba6d` seeds transactions in the current month.
+- The salary-tax work is included in the local 0.10.1-beta release. This audit is tracked with the release; the two implementation plans remain untracked working documents. No remote push or deployment is part of this audit.
+
+## Scope of the updated result
+
+The calculator remains a full-year employee **estimate** using modeled standard credits and contributions, not a filed personal return or payroll withholding calculation. It does not infer spouse or dependant credits, other personal deductions, RRSP carryforward or pension adjustments, contribution-room legality, or overcontribution tax. An entered CRA deduction limit is accepted as supplied; without one, RRSP tax savings assume deductibility. Monthly and biweekly figures divide annual modeled net by 12 and 26.
+
+The shared calculator also feeds compensation take-home estimates (`src/hooks/useTakeHomeEstimate.ts`) and automated compensation tax rates (`src/utils/finance/compTax.ts`). The 0.10.1-beta tests cover those consumers.

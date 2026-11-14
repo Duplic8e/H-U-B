@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Theme 6 mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Lato:wght@300;400;700&family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #16130f;
+    color: #e7e0d6;
+    font-family: 'Inter', sans-serif;
+    padding: 28px 20px 80px;
+  }
+  .page-head { max-width: 1180px; margin: 0 auto 26px; }
+  .page-head h1 { font-family: 'Outfit', sans-serif; font-size: 22px; margin: 0 0 6px; font-weight: 700; letter-spacing: -0.01em; }
+  .page-head p { margin: 0; font-size: 13px; color: #9c9287; line-height: 1.6; }
+
+  .option { max-width: 1180px; margin: 0 auto 46px; }
+  .option-label {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    margin: 0 0 10px; padding: 0 2px;
+  }
+  .option-label .tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: #16130f; background: #b9ae9e; padding: 3px 8px; border-radius: 4px;
+  }
+  .option-label h2 { font-family: 'Outfit', sans-serif; font-size: 17px; margin: 0; font-weight: 600; }
+  .option-label .note { font-size: 12.5px; color: #9c9287; }
+
+  /* ============ the mock app frame ============ */
+  .canvas {
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.09);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    isolation: isolate;
+  }
+  .deco { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+  .app { position: relative; z-index: 1; display: flex; min-height: 470px; }
+
+  /* sidebar */
+  .side {
+    width: 178px; flex: 0 0 178px; padding: 16px 12px;
+    border-right: 1px solid var(--border);
+    background: var(--side-bg);
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; margin: 2px 4px 18px; }
+  .brand .mark {
+    width: 26px; height: 26px; border-radius: 8px; flex: none;
+    background: var(--mark-bg); border: 1px solid var(--accent);
+    display: grid; place-items: center;
+    color: var(--accent); font-family: var(--font-display); font-weight: 700; font-size: 13px;
+    box-shadow: var(--mark-shadow);
+  }
+  .brand .name { font-family: var(--font-display); font-weight: 600; font-size: 14.5px; letter-spacing: -0.01em; }
+  .nav {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 9px; border-radius: 8px; font-size: 12.5px; color: var(--text-secondary);
+  }
+  .nav.on {
+    background: var(--nav-on-bg); color: var(--nav-on-fg); font-weight: 600;
+    box-shadow: var(--nav-on-shadow);
+  }
+  .nav .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .55; }
+  .nav.on .dot { opacity: 1; background: var(--accent); }
+  .side .spacer { flex: 1; }
+  .side .foot { font-size: 10.5px; color: var(--text-secondary); padding: 0 6px; opacity: .8; }
+
+  /* main */
+  .main { flex: 1; padding: 18px 22px 24px; min-width: 0; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+  .topbar h3 { font-family: var(--font-display); font-size: 19px; margin: 0 0 2px; font-weight: 700; letter-spacing: -0.015em; }
+  .topbar .sub { font-size: 11.5px; color: var(--text-secondary); }
+  .btn {
+    font-size: 12px; font-weight: 600; padding: 7px 13px; border-radius: 8px;
+    background: var(--btn-bg); color: var(--btn-fg); border: 1px solid var(--btn-border);
+    box-shadow: var(--btn-shadow);
+  }
+  .btn.ghost { background: var(--card-bg); color: var(--text-primary); border-color: var(--border-strong); box-shadow: none; font-weight: 500; }
+
+  .grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 13px; }
+  .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-bottom: 13px; }
+
+  .card {
+    position: relative;
+    border-radius: var(--card-radius);
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: var(--card-shadow);
+    padding: 14px 15px;
+    overflow: hidden;
+  }
+  /* the inner top highlight that sells "depth" on a light theme */
+  .card::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    box-shadow: var(--card-inset);
+  }
+  .card .k { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; }
+  .card .v { font-family: var(--font-display); font-size: 21px; font-weight: 700; margin-top: 5px; letter-spacing: -0.02em; }
+  .card .d { font-size: 11.5px; margin-top: 3px; color: var(--pos); font-weight: 600; }
+  .card .d.neg { color: var(--neg); }
+
+  .hero { padding: 17px 18px 8px; }
+  .hero .k { font-size: 11px; }
+  .hero .v { font-size: 36px; margin-top: 6px; }
+  .hero .meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; }
+  .pill {
+    font-size: 11px; font-weight: 700; padding: 2.5px 8px; border-radius: 999px;
+    background: var(--pill-bg); color: var(--pos); border: 1px solid var(--pill-border);
+  }
+
+  .spark { display: block; width: 100%; height: 92px; margin-top: 10px; }
+
+  /* list */
+  .list .item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .list .item:last-child { border-bottom: 0; }
+  .list .ico {
+    width: 27px; height: 27px; border-radius: 8px; flex: none;
+    background: var(--chip-bg); border: 1px solid var(--chip-border);
+    display: grid; place-items: center; font-size: 11px; color: var(--accent); font-weight: 700;
+    font-family: var(--font-display);
+  }
+  .list .nm { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 500; }
+  .list .nm small { display: block; font-size: 10.5px; color: var(--text-secondary); font-weight: 400; margin-top: 1px; }
+  .list .amt { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* allocation bars */
+  .bars { margin-top: 10px; display: flex; flex-direction: column; gap: 9px; }
+  .bar-row { font-size: 11.5px; }
+  .bar-row .lab { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-secondary); }
+  .bar-row .lab b { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .track { height: 7px; border-radius: 999px; background: var(--track); overflow: hidden; box-shadow: var(--track-inset); }
+  .fill { height: 100%; border-radius: 999px; }
+
+  /* token strip */
+  .tokens {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding: 0 2px;
+  }
+  .tok {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #b3a99c;
+    background: #211d18; border: 1px solid #322c25; border-radius: 6px; padding: 4px 8px;
+  }
+  .tok i { width: 11px; height: 11px; border-radius: 3px; display: block; border: 1px solid rgba(255,255,255,.16); }
+
+  /* =================================================================
+     OPTION A — TERRACOTTA ATELIER
+     warm clay + paper, arch motif, espresso ink
+     ================================================================= */
+  .t-clay {
+    --bg-primary: #FBF5EC;
+    --side-bg: linear-gradient(180deg, rgba(246,234,218,.66) 0%, rgba(242,227,208,.72) 100%);
+    --text-primary: #2F1E14;
+    --text-secondary: #806454;
+    --accent: #BE5326;
+    --border: #EADBC8;
+    --border-strong: #B79C84;
+    --pos: #45702F;
+    --neg: #B3402C;
+    --font-body: 'Lato', sans-serif;
+    --font-display: 'Playfair Display', serif;
+
+    --card-bg: linear-gradient(168deg, #FFFCF7 0%, #FCF3E7 100%);
+    --card-border: #EBDCC9;
+    --card-radius: 12px;
+    --card-shadow: 0 1px 2px rgba(90,52,28,.07), 0 10px 26px -12px rgba(90,52,28,.30);
+    --card-inset: inset 0 1px 0 rgba(255,255,255,.9);
+    --mark-bg: #F7E3D3; --mark-shadow: 0 2px 6px -2px rgba(190,83,38,.45);
+    --nav-on-bg: linear-gradient(180deg,#FFFFFF,#FDF4E8); --nav-on-fg: #2F1E14;
+    --nav-on-shadow: 0 1px 2px rgba(90,52,28,.10), inset 0 1px 0 #fff;
+    --btn-bg: linear-gradient(180deg,#CE6032,#B34A20); --btn-fg: #FFF6EE; --btn-border: #9E4019;
+    --btn-shadow: 0 2px 6px -1px rgba(150,60,25,.42), inset 0 1px 0 rgba(255,255,255,.28);
+    --pill-bg: #EDF2E4; --pill-border: #D2DEC0;
+    --chip-bg: #F9EADC; --chip-border: #EDD6BF;
+    --track: #EFE2D1; --track-inset: inset 0 1px 2px rgba(90,52,28,.12);
+    --c1: #BE5326; --c2: #8C6239; --c3: #45702F; --c4: #C08A2E;
+  }
+  /* arch colonnade, drawn once, top-right */
+  .t-clay .deco::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      /* arch colonnade, springing from the bottom edge */
+      radial-gradient(circle at 14% 118%, transparent 0 86px, rgba(160,66,28,.20) 86px 88px, transparent 88px),
+      radial-gradient(circle at 14% 118%, transparent 0 138px, rgba(160,66,28,.15) 138px 140px, transparent 140px),
+      radial-gradient(circle at 14% 118%, transparent 0 190px, rgba(160,66,28,.10) 190px 192px, transparent 192px),
+      /* mirrored arches at the top right */
+      radial-gradient(circle at 88% -14%, transparent 0 92px, rgba(160,66,28,.17) 92px 94px, transparent 94px),
+      radial-gradient(circle at 88% -14%, transparent 0 148px, rgba(160,66,28,.12) 148px 150px, transparent 150px),
+      radial-gradient(circle at 88% -14%, transparent 0 204px, rgba(160,66,28,.08) 204px 206px, transparent 206px),
+      /* hairline rules, like a ruled ledger page */
+      repeating-linear-gradient(180deg, rgba(160,110,70,.07) 0 1px, transparent 1px 22px);
+  }
+  /* warm light spill from top-left + paper grain */
+  .t-clay .deco::after {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(900px 420px at 8% -8%, rgba(255,230,196,.85), transparent 70%),
+      radial-gradient(700px 500px at 100% 105%, rgba(226,196,160,.35), transparent 72%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
+  }
+
+  /* =================================================================
+     OPTION B — SANDSTONE DECO
+     ochre + pine, topographic contours, deco fan
+     ================================================================= */
+  .t-sand {
+    --bg-primary: #F7F0E4;
+    --side-bg: linear-gradient(180deg, rgba(241,231,214,.62) 0%, rgba(234,221,199,.70) 100%);
+    --text-primary: #241C12;
+    --text-secondary: #7B6A53;
+    --accent: #A85B18;
+    --border: #E4D7C1;
+    --border-strong: #AC9877;
+    --pos: #3D6B57;
+    --neg: #A83E2B;
+    --font-body: 'Inter', sans-serif;
+    --font-display: 'Outfit', sans-serif;
+
+    --card-bg: linear-gradient(170deg, #FFFCF5 0%, #F9F0DF 100%);
+    --card-border: #E6D9C3;
+    --card-radius: 10px;
+    --card-shadow: 0 1px 2px rgba(74,55,28,.08), 0 14px 30px -16px rgba(74,55,28,.34);
+    --card-inset: inset 0 1px 0 rgba(255,255,255,.92);
+    --mark-bg: #F2E2C8; --mark-shadow: 0 2px 6px -2px rgba(168,91,24,.42);
+    --nav-on-bg: linear-gradient(180deg,#FFFDF7,#F8EFDD); --nav-on-fg: #241C12;
+    --nav-on-shadow: 0 1px 2px rgba(74,55,28,.12), inset 0 1px 0 #fff;
+    --btn-bg: linear-gradient(180deg,#3D6B57,#2E5544); --btn-fg: #F4F9F4; --btn-border: #27483A;
+    --btn-shadow: 0 2px 6px -1px rgba(40,75,60,.42), inset 0 1px 0 rgba(255,255,255,.22);
+    --pill-bg: #E7F0E9; --pill-border: #CBDDD0;
+    --chip-bg: #F5E9D3; --chip-border: #E7D6B6;
+    --track: #EBDFC9; --track-inset: inset 0 1px 2px rgba(74,55,28,.14);
+    --c1: #A85B18; --c2: #3D6B57; --c3: #C69A3E; --c4: #7A5C86;
+  }
+  /* topographic contour field, low contrast, whole surface */
+  .t-sand .deco::before {
+    content: ''; position: absolute; inset: -20%;
+    background-image:
+      repeating-radial-gradient(ellipse 62% 48% at 18% 26%, transparent 0 22px, rgba(120,88,42,.13) 22px 24px, transparent 23.5px 46px),
+      repeating-radial-gradient(ellipse 55% 65% at 88% 78%, transparent 0 26px, rgba(120,88,42,.10) 26px 28px, transparent 27.5px 54px);
+  }
+  /* deco sunburst fan, bottom-left corner */
+  .t-sand .deco::after {
+    content: ''; position: absolute; inset: 0;
+    background:
+      repeating-conic-gradient(from 0deg at 0% 100%, rgba(168,91,24,.20) 0deg 2.4deg, transparent 2.2deg 11deg),
+      radial-gradient(760px 380px at 92% -6%, rgba(255,243,219,.9), transparent 70%);
+    -webkit-mask-image: radial-gradient(540px 540px at 0% 100%, #000 0%, transparent 74%), linear-gradient(#000,#000);
+    -webkit-mask-composite: source-over;
+            mask-image: radial-gradient(540px 540px at 0% 100%, #000 0%, transparent 74%), linear-gradient(#000,#000);
+  }
+
+  /* =================================================================
+     OPTION C — HONEYED LINEN
+     linen weave + botanical engraving, honey & olive
+     ================================================================= */
+  .t-linen {
+    --bg-primary: #FCF7EE;
+    --side-bg: linear-gradient(180deg, rgba(247,241,228,.60) 0%, rgba(241,234,217,.68) 100%);
+    --text-primary: #262218;
+    --text-secondary: #776F5E;
+    --accent: #C08423;
+    --border: #E9E0CE;
+    --border-strong: #B0A488;
+    --pos: #52703C;
+    --neg: #AD4231;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+    --font-display: 'Playfair Display', serif;
+
+    --card-bg: linear-gradient(172deg, #FFFDF8 0%, #FBF6EA 100%);
+    --card-border: #ECE3D1;
+    --card-radius: 14px;
+    --card-shadow: 0 1px 2px rgba(70,58,30,.06), 0 12px 28px -14px rgba(70,58,30,.28);
+    --card-inset: inset 0 1px 0 rgba(255,255,255,.95), inset 0 0 0 1px rgba(192,132,35,.05);
+    --mark-bg: #F7EBD2; --mark-shadow: 0 2px 6px -2px rgba(192,132,35,.4);
+    --nav-on-bg: linear-gradient(180deg,#FFFFFF,#FBF4E6); --nav-on-fg: #262218;
+    --nav-on-shadow: 0 1px 2px rgba(70,58,30,.10), inset 0 1px 0 #fff;
+    --btn-bg: linear-gradient(180deg,#CF9130,#B0761C); --btn-fg: #FFF9EC; --btn-border: #96631413;
+    --btn-shadow: 0 2px 6px -1px rgba(150,99,20,.40), inset 0 1px 0 rgba(255,255,255,.30);
+    --pill-bg: #EDF1E6; --pill-border: #D6E0C9;
+    --chip-bg: #F8EEDA; --chip-border: #EDDDBE;
+    --track: #EFE7D5; --track-inset: inset 0 1px 2px rgba(70,58,30,.12);
+    --c1: #C08423; --c2: #52703C; --c3: #9C6B4A; --c4: #6E7F9B;
+  }
+  /* linen weave */
+  .t-linen .deco::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(45deg, rgba(150,120,60,.085) 0 1px, transparent 1px 7px),
+      repeating-linear-gradient(-45deg, rgba(150,120,60,.07) 0 1px, transparent 1px 7px);
+  }
+  /* engraved laurel corner + honey glow */
+  .t-linen .deco::after {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(820px 400px at 96% 0%, rgba(255,236,200,.85), transparent 68%),
+      radial-gradient(600px 400px at 0% 100%, rgba(226,214,186,.5), transparent 70%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Cg fill='none' stroke='%23C08423' stroke-opacity='.55' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M20 280 C 90 260, 150 205, 185 130'/%3E%3Cpath d='M20 280 C 60 215, 120 175, 195 160'/%3E%3Cpath d='M46 262 c -14 -20 -12 -40 4 -52 12 16 10 38 -4 52z'/%3E%3Cpath d='M46 262 c 22 -6 32 -24 26 -42 -19 5 -31 22 -26 42z'/%3E%3Cpath d='M84 236 c -14 -20 -12 -40 4 -52 12 16 10 38 -4 52z'/%3E%3Cpath d='M84 236 c 22 -6 32 -24 26 -42 -19 5 -31 22 -26 42z'/%3E%3Cpath d='M120 205 c -14 -20 -12 -40 4 -52 12 16 10 38 -4 52z'/%3E%3Cpath d='M120 205 c 22 -6 32 -24 26 -42 -19 5 -31 22 -26 42z'/%3E%3Cpath d='M152 166 c -13 -19 -11 -37 4 -48 11 15 9 35 -4 48z'/%3E%3Cpath d='M152 166 c 21 -6 30 -22 24 -39 -18 5 -29 21 -24 39z'/%3E%3Ccircle cx='196' cy='120' r='5'/%3E%3C/g%3E%3C/svg%3E");
+    background-repeat: no-repeat, no-repeat, no-repeat;
+    background-position: center, center, left -30px bottom -34px;
+    background-size: auto, auto, 420px 420px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Theme 6 &mdash; three warm-light directions</h1>
+  <p>Each panel is the same dashboard slice rendered with a full token set. All three use fonts already loaded in <code>index.css</code>, so none of them adds a webfont request. Depth here comes from four stacked things: a tinted (never grey) shadow, a gradient card fill, a 1px white inner top highlight, and a decoration layer behind everything.</p>
+</div>
+
+<!-- ============ A ============ -->
+<section class="option">
+  <div class="option-label">
+    <span class="tag">Option A</span>
+    <h2>Terracotta Atelier</h2>
+    <span class="note">Clay + espresso ink &middot; Playfair Display / Lato &middot; arch colonnade + paper grain</span>
+  </div>
+  <div class="canvas t-clay"><div class="deco"></div><div class="app" data-app></div></div>
+  <div class="tokens" data-tokens="#FBF5EC bg,#FFFCF7 card,#BE5326 accent,#2F1E14 ink,#806454 muted,#EADBC8 border"></div>
+</section>
+
+<!-- ============ B ============ -->
+<section class="option">
+  <div class="option-label">
+    <span class="tag">Option B</span>
+    <h2>Sandstone Deco</h2>
+    <span class="note">Ochre + pine green &middot; Outfit / Inter &middot; topographic contours + deco sunburst</span>
+  </div>
+  <div class="canvas t-sand"><div class="deco"></div><div class="app" data-app></div></div>
+  <div class="tokens" data-tokens="#F7F0E4 bg,#FFFCF5 card,#A85B18 accent,#3D6B57 support,#241C12 ink,#E4D7C1 border"></div>
+</section>
+
+<!-- ============ C ============ -->
+<section class="option">
+  <div class="option-label">
+    <span class="tag">Option C</span>
+    <h2>Honeyed Linen</h2>
+    <span class="note">Honey + olive &middot; Playfair Display / Plus Jakarta Sans &middot; linen weave + engraved laurel</span>
+  </div>
+  <div class="canvas t-linen"><div class="deco"></div><div class="app" data-app></div></div>
+  <div class="tokens" data-tokens="#FCF7EE bg,#FFFDF8 card,#C08423 accent,#52703C support,#262218 ink,#E9E0CE border"></div>
+</section>
+
+<template id="tpl">
+  <aside class="side">
+    <div class="brand"><span class="mark">L</span><span class="name">Ledger</span></div>
+    <div class="nav on"><span class="dot"></span>Dashboard</div>
+    <div class="nav"><span class="dot"></span>Budget</div>
+    <div class="nav"><span class="dot"></span>Investments</div>
+    <div class="nav"><span class="dot"></span>Compensation</div>
+    <div class="nav"><span class="dot"></span>Reports</div>
+    <div class="spacer"></div>
+    <div class="foot">Synced 4 min ago</div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h3>Dashboard</h3>
+        <div class="sub">August 2026 &middot; 6 accounts</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <span class="btn ghost">Export</span>
+        <span class="btn">Add account</span>
+      </div>
+    </div>
+
+    <div class="card hero" style="margin-bottom:13px">
+      <div class="k">Net worth</div>
+      <div class="v">$248,910.32</div>
+      <div class="meta"><span class="pill">&#9650; 3.8%</span><span style="color:var(--text-secondary)">+$9,124 this month</span></div>
+      <svg class="spark" viewBox="0 0 600 100" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="g-%ID%" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity=".30"/>
+            <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,78 L50,72 L100,80 L150,60 L200,64 L250,46 L300,52 L350,36 L400,42 L450,26 L500,30 L550,16 L600,10 L600,100 L0,100 Z" fill="url(#g-%ID%)"/>
+        <path d="M0,78 L50,72 L100,80 L150,60 L200,64 L250,46 L300,52 L350,36 L400,42 L450,26 L500,30 L550,16 L600,10"
+              fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <div class="row3">
+      <div class="card"><div class="k">Cash</div><div class="v">$34,120</div><div class="d">+$1,240</div></div>
+      <div class="card"><div class="k">Invested</div><div class="v">$196,480</div><div class="d">+$8,310</div></div>
+      <div class="card"><div class="k">Liabilities</div><div class="v">$18,690</div><div class="d neg">&minus;$426</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card list">
+        <div class="k" style="margin-bottom:4px">Recent transactions</div>
+        <div class="item"><span class="ico">W</span><span class="nm">Whole Foods<small>Groceries &middot; Aug 24</small></span><span class="amt">&minus;$86.40</span></div>
+        <div class="item"><span class="ico">A</span><span class="nm">Acme Payroll<small>Income &middot; Aug 22</small></span><span class="amt">+$4,812.00</span></div>
+        <div class="item"><span class="ico">R</span><span class="nm">Rent<small>Housing &middot; Aug 21</small></span><span class="amt">&minus;$2,150.00</span></div>
+        <div class="item"><span class="ico">V</span><span class="nm">Vanguard VTI<small>Buy &middot; Aug 20</small></span><span class="amt">&minus;$1,000.00</span></div>
+      </div>
+      <div class="card">
+        <div class="k">Allocation</div>
+        <div class="bars">
+          <div class="bar-row"><div class="lab"><span>US equity</span><b>58%</b></div><div class="track"><div class="fill" style="width:58%;background:var(--c1)"></div></div></div>
+          <div class="bar-row"><div class="lab"><span>Intl equity</span><b>21%</b></div><div class="track"><div class="fill" style="width:21%;background:var(--c2)"></div></div></div>
+          <div class="bar-row"><div class="lab"><span>Bonds</span><b>13%</b></div><div class="track"><div class="fill" style="width:13%;background:var(--c3)"></div></div></div>
+          <div class="bar-row"><div class="lab"><span>Cash</span><b>8%</b></div><div class="track"><div class="fill" style="width:8%;background:var(--c4)"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</template>
+
+<script>
+  const tpl = document.getElementById('tpl').innerHTML;
+  document.querySelectorAll('[data-app]').forEach((el, i) => {
+    el.innerHTML = tpl.replaceAll('%ID%', 'x' + i);
+  });
+  document.querySelectorAll('[data-tokens]').forEach((el) => {
+    el.innerHTML = el.dataset.tokens.split(',').map((t) => {
+      const [hex, label] = t.trim().split(' ');
+      return '<span class="tok"><i style="background:' + hex + '"></i>' + hex + ' <span style="opacity:.6">' + label + '</span></span>';
+    }).join('');
+  });
+</script>
+</body>
+</html>
