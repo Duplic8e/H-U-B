@@ -61,7 +61,7 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ rows, rates,
           with roughly 90px of void above and below at 1440 and a badly
           unbalanced band at 768. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-start">
-        <div>
+        <div className="@container">
           <p className="text-[12px] uppercase text-text-secondary">Holdings Value (CAD)</p>
           {/* wide:, not desktop:. The desktop variant starts at 768, where the
               sidebar has already taken 256px and this grid column is 183px
@@ -81,7 +81,13 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ rows, rates,
               already use for a large money headline; at 183px it leaves 24px
               of genuine headroom for eleven characters and still clears an
               unlikely twelve character figure ($123,384,200) by 8px. */}
-          <p data-key-figure className="text-[28px] wide:text-[44px] font-semibold text-text-primary tabular-nums leading-none mt-2">
+          {/* The size also follows the column (14% of its width, cqi), because
+              the system font is not always San Francisco: on Linux and Windows
+              the fallback is wider, and $13,000,000 at a fixed 28px needed
+              195px of a 183px column. 14cqi keeps eleven characters inside the
+              column in the widest common fallback, and the px values stay the
+              most it can be. */}
+          <p data-key-figure className="text-[min(28px,14cqi)] wide:text-[min(44px,14cqi)] font-semibold text-text-primary tabular-nums leading-none mt-2">
             {formatMoney(totals.valueCad)}
           </p>
           <p className={`text-[14px] font-medium tabular-nums mt-3 ${up ? 'text-accent' : 'text-error'}`}>

@@ -90,6 +90,10 @@ export const Budgeting: React.FC = () => {
     ? new Date(`${period.month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : `${range.from} to ${range.to}`;
 
+  const shortMonth = period.kind === 'month'
+    ? new Date(`${period.month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : formattedMonth;
+
   const choices = periodChoices(period, currentMonth, formattedMonth);
   const choiceValue = periodChoiceValue(period, currentMonth);
   const chooseValue = (v: string) => {
@@ -114,7 +118,8 @@ export const Budgeting: React.FC = () => {
       >
         <ChevronLeft size={20} />
       </button>
-      <span className="text-[15px] font-medium tabular-nums text-center">{formattedMonth}</span>
+      {/* Short month ("Nov 2026"): the full name made the row wrap on a 320px phone. */}
+      <span className="text-[15px] font-medium tabular-nums text-center">{shortMonth}</span>
       <button
         onClick={() => shiftMonth(1)}
         className="h-11 w-11 flex items-center justify-center rounded-md text-text-secondary hover:text-accent transition-colors duration-200"

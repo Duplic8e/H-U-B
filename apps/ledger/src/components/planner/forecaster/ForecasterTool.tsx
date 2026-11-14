@@ -156,8 +156,10 @@ export const ForecasterTool: React.FC = () => {
         </div>
       </div>
 
-      {/* What-if sliders */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-end">
+      {/* What-if sliders. Five across only once the column is wide enough
+          (wide, 912px): at 768 the sidebar leaves about 77px per field, and
+          "Contribution" alone is wider than that in a wider fallback font. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 wide:grid-cols-5 gap-4 items-end">
         <CalculatorField label="Years" min={1} max={50} value={settings.years} onChange={(v) => setSetting('years', v)} />
         <CalculatorField label="Return" suffix="%" step={0.1} value={settings.annualReturnPct} onChange={(v) => setSetting('annualReturnPct', v)} />
         <CalculatorField label="Inflation" suffix="%" step={0.1} value={settings.inflationPct} onChange={(v) => setSetting('inflationPct', v)} />
