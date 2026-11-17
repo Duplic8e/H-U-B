@@ -40,8 +40,11 @@ let lookups = 0;
 let online = true;
 const cloud = { sha: null, text: null };
 async function openFoodFacts(route) {
-  lookups++;
+  const host = new URL(route.request().url()).host;
+  if (host === 'world.openfoodfacts.org') lookups++;
   if (!online) return route.abort('internetdisconnected');
+  if (host === 'api.nal.usda.gov') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ foods: [] }) });
+  if (host !== 'world.openfoodfacts.org') return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ status: 0 }) });
   const code = new URL(route.request().url()).pathname.match(/product\/(\d+)\.json/)?.[1];
   if (code !== BARCODE) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code, status: 0, status_verbose: 'product not found' }) });
   return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code, status: 1, product: { product_name: 'Nutella', brands: 'Ferrero', quantity: '400 g' } }) });
@@ -69,7 +72,7 @@ const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream',
 const errors = [];
 async function install() {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: shots ? 2 : 1, permissions: ['camera'], serviceWorkers: 'block' });
-  await context.route('https://world.openfoodfacts.org/**', openFoodFacts);
+  await context.route(/^https:\/\/(world\.open\w+facts\.org|api\.nal\.usda\.gov)\//, openFoodFacts);
   await context.route('https://api.github.com/**', github);
   await context.addInitScript((token) => localStorage.setItem('hub-cloud', JSON.stringify({ owner: 'me', repo: 'data', token })), TOKEN);
   const page = await context.newPage();
@@ -111,7 +114,7 @@ await page.waitForFunction(() => document.querySelector('.list output')?.textCon
 assert.equal(lookups, 1);
 
 // By hand, for things without a barcode.
-await page.getByRole('button', { name: 'Add by hand' }).click();
+await page.getByRole('button', { name: 'Add by hand', exact: true }).click();
 const manual = page.getByRole('dialog', { name: 'Add to pantry' });
 await manual.getByLabel('Name').fill('Bananas');
 await manual.getByRole('button', { name: 'One more' }).click();

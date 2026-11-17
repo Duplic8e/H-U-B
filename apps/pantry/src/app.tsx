@@ -23,7 +23,7 @@ async function draftFor(barcode: string): Promise<Draft> {
   if (result.status === 'found') return { mode: 'new', barcode, ...result.product, quantity: 1 };
   return {
     mode: 'new', barcode, name: '', quantity: 1,
-    note: result.status === 'offline' ? 'Could not look this product up (no connection). Type its name and Pantry will remember it.' : 'This product is not in the database. Type its name and Pantry will remember it.',
+    note: result.status === 'offline' ? 'Could not look this product up (no connection). Type its name and Pantry will remember it.' : 'None of the product databases know this barcode. Type its name and Pantry will remember it.',
   };
 }
 
