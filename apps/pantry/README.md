@@ -2,15 +2,17 @@
 
 What food is at home, for the Hub. Served at `/H-U-B/pantry/`.
 
-- **Scan a barcode** with the camera and the product's name, brand and photo are filled in from
-  [Open Food Facts](https://world.openfoodfacts.org). Only the barcode is sent.
+- **Scan a barcode** with the camera and the product's name, brand and photo are filled in from five free
+  databases asked at once: Open Food Facts, USDA FoodData Central (US branded foods), Open Products Facts,
+  Open Beauty Facts and Open Pet Food Facts. Only the barcode is sent. USDA uses the shared `DEMO_KEY`
+  unless a free key of your own is saved in Settings.
 - **Quantity**: scanning a product you already have adds one. Minus uses one up; the last one removes
   the item, with Undo.
 - **Expiry date**, optional, one per product. Dated items list soonest first; expired items and those
   within 7 days are highlighted.
 - **Unknown products and no signal**: type the name once. Pantry remembers every product it has seen,
   including used-up ones, so the next scan needs no lookup.
-- **No barcode** (produce, bulk): the plus button adds an item by hand.
+- **No barcode** (produce, bulk): the + in the header, or Add next to Scan, adds an item by hand.
 - **Offline first** (IndexedDB), backed up to `pantry/data.json` in the Hub's private data repo through
   the Hub's one GitHub connection. Edits from two devices merge by row, newest edit winning. A scanned
   product's row id is its barcode, so two phones that scan the same thing offline end up with one row.
@@ -31,3 +33,9 @@ UPC-A and UPC-E; a UPC-A code is stored as EAN-13 with a leading zero so both re
 The camera needs HTTPS (or localhost) and the user's permission.
 
 `../../tests/e2e/pantry.mjs` drives the built app in Chromium with a fake camera showing a generated barcode.
+
+## Adding a product database
+
+Add an entry to `SOURCES` in `src/data/lookup.ts`. It must be callable from a browser (it has to send
+`Access-Control-Allow-Origin` for any site) without a secret. UPCitemdb, Barcode Lookup, Go-UPC and
+EAN-Search were ruled out for that reason: they either refuse browser calls or need a paid key.

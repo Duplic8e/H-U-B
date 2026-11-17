@@ -9,7 +9,7 @@ A Hub helper that tracks food at home. Items are added by scanning their barcode
 - **Scanning**: live camera (`getUserMedia`) with a bundled decoder (`barcode-detector` ponyfill, ZXing
   WebAssembly). iPhone Safari does not ship the native `BarcodeDetector`, and photo-then-decode is too slow
   for unloading groceries. Formats: EAN-13, EAN-8, UPC-A, UPC-E.
-- **Product details**: Open Food Facts v2 API, no account. Only the barcode is sent.
+- **Product details**: five free databases asked at once (Open Food Facts, USDA FoodData Central, Open Products, Beauty and Pet Food Facts). Only the barcode is sent.
 - **Tracked per item**: name, brand, photo URL, quantity, optional expiry date. Not tracked: location,
   shopping list.
 - **One row per product**, one expiry date per product (the earliest pack), not one per pack.

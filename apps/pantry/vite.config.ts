@@ -33,7 +33,7 @@ export default defineConfig({
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         // Product photos are cached the first time each is shown, so the list looks the same offline.
-        runtimeCaching: [{ urlPattern: /^https:\/\/images\.openfoodfacts\.org\//, handler: 'CacheFirst', options: { cacheName: 'pantry-product-photos', cacheableResponse: { statuses: [0, 200] }, expiration: { maxEntries: 500 } } }],
+        runtimeCaching: [{ urlPattern: /^https:\/\/images\.open\w+facts\.org\//, handler: 'CacheFirst', options: { cacheName: 'pantry-product-photos', cacheableResponse: { statuses: [0, 200] }, expiration: { maxEntries: 500 } } }],
       },
     }),
   ],

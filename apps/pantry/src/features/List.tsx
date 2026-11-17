@@ -22,6 +22,7 @@ export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () 
     <>
       <Header title="Pantry" actions={<>
         {HUB_URL && <a class="icon-btn" href={HUB_URL} aria-label="Hub"><Icon name="hub" /></a>}
+        <button type="button" class="icon-btn" aria-label="Add an item by hand" onClick={onAdd}><Icon name="plus" /></button>
         <a class="icon-btn" href="#/settings" aria-label="Settings"><Icon name="gear" /></a>
       </>} />
       <div class="page">
@@ -31,7 +32,7 @@ export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () 
         {items && items.length === 0 && (
           <div class="empty" style={{ marginTop: '18vh' }}>
             <p style={{ fontSize: 20, fontWeight: 650, color: 'var(--text)', margin: '0 0 6px' }}>Nothing in the pantry yet</p>
-            <p style={{ margin: 0 }}>Scan the barcode on a food item to add it.</p>
+            <p style={{ margin: 0 }}>Scan the barcode on a food item to add it, or tap + to type one in.</p>
           </div>
         )}
         {items && items.length > 0 && shown.length === 0 && <p class="empty">Nothing matches “{query.trim()}”.</p>}
@@ -63,7 +64,7 @@ export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () 
       <div class="actions">
         <div class="actions-inner">
           <button type="button" class="btn primary" onClick={onScan}><Icon name="scan" />Scan barcode</button>
-          <button type="button" class="btn add" aria-label="Add by hand" onClick={onAdd}><Icon name="plus" /></button>
+          <button type="button" class="btn add" aria-label="Add by hand" onClick={onAdd}><Icon name="plus" />Add</button>
         </div>
       </div>
     </>
