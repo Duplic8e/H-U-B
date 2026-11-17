@@ -55,4 +55,13 @@ export const APPS: HubApp[] = [
     gradient: ['#4f8cff', '#1f4fd8'],
     icon: '<rect x="3" y="5" width="14" height="11" rx="2"/><path d="M7 19h12a2 2 0 0 0 2-2V9"/><path d="M7 12.5 9.5 8l2.5 4.5M8 11h3"/>',
   },
+  {
+    id: 'pantry',
+    name: 'Pantry',
+    tagline: 'Scan barcodes to track food at home',
+    dataFile: 'pantry/data.json',
+    color: '#30b0c7',
+    gradient: ['#4fd0de', '#00798a'],
+    icon: '<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 9v6M12 9v6M16 9v6"/>',
+  },
 ];

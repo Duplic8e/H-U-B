@@ -6,6 +6,7 @@ name: Build and deploy the Hub
 #   /H-U-B/torque/   Torque         (apps/torque)
 #   /H-U-B/lift/     Lift           (apps/lift)
 #   /H-U-B/french/   French         (apps/french)
+#   /H-U-B/pantry/   Pantry         (apps/pantry)
 # Each app's unit tests run before anything deploys. Ledger's full checks
 # (lint, browser tests) run separately in ledger-checks.yml.
 on:
@@ -42,6 +43,7 @@ jobs:
             apps/torque/package-lock.json
             apps/lift/package-lock.json
             apps/french/package-lock.json
+            apps/pantry/package-lock.json
 
       - name: Hub
         run: npm ci && npm test && npm run build
@@ -76,6 +78,13 @@ jobs:
           BASE_PATH: ${{ env.SITE_BASE }}french/
           VITE_HUB_URL: ${{ env.SITE_BASE }}
 
+      - name: Pantry
+        working-directory: apps/pantry
+        run: npm ci && npm test && npm run build
+        env:
+          BASE_PATH: ${{ env.SITE_BASE }}pantry/
+          VITE_HUB_URL: ${{ env.SITE_BASE }}
+
       - name: Assemble the site
         run: |
           mkdir -p site
@@ -84,6 +93,7 @@ jobs:
           cp -R apps/torque/dist site/torque
           cp -R apps/lift/dist site/lift
           cp -R apps/french/dist site/french
+          cp -R apps/pantry/dist site/pantry
           touch site/.nojekyll
 
       - uses: actions/upload-pages-artifact@v3

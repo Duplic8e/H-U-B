@@ -9,6 +9,7 @@ One home for all my helpers. Live at **https://duplic8e.github.io/H-U-B/**.
 | `/H-U-B/torque/` | Torque: car maintenance | `apps/torque` |
 | `/H-U-B/lift/` | Lift: gym workouts, records, progress | `apps/lift` |
 | `/H-U-B/french/` | French: vocabulary with spaced repetition | `apps/french` |
+| `/H-U-B/pantry/` | Pantry: scan barcodes to track food at home | `apps/pantry` |
 
 All the code lives in this repo, one folder per app under `apps/`. Each app is a separate project with
 its own `package.json`; work on one with `cd apps/<app> && npm ci && npm test && npm run dev`.
@@ -28,6 +29,7 @@ H-U-B-helper/
   torque/data.json      Torque's records (photos in torque/attachments/)
   lift/data.json        Lift's routines, workouts and sets
   french/data.json      French progress on each word, and your own words
+  pantry/data.json      Pantry's items, quantities and expiry dates
 ```
 
 Every sync is a commit, so the repo's history is also a full undo history.
@@ -80,6 +82,9 @@ npm run build
 
 `tests/e2e/lift.mjs` drives Lift the same way: set up, two workouts, records, a unit switch,
 sync, and a fresh-install restore.
+
+`tests/e2e/pantry.mjs` drives Pantry with a fake camera that shows a generated barcode: scan, look up,
+save, count, use up, sync, and a fresh-install restore.
 
 `tests/e2e/hub.mjs` drives the assembled site against a simulated GitHub: connect, use both helpers, wipe
 the browser, and check both restore. See the comment at its top for how to run it.
