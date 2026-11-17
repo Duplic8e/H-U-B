@@ -5,7 +5,7 @@
 //   node tests/e2e/pantry.mjs http://localhost:4510/
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
@@ -26,23 +26,46 @@ function ean13(code) {
   const right = d.slice(7).map((n) => inv(L[n])).join('');
   return `101${left}01010${right}101`;
 }
-const bars = [...ean13(BARCODE)].map((b, i) => (b === '1' ? `<rect x="${340 + i * 6}" y="210" width="6" height="300"/>` : '')).join('');
+/** UPC-E, the short code on small packs: number system 0, six digits, parity set by the check digit. */
+const UPCE_PARITY = ['EEEOOO', 'EEOEOO', 'EEOOEO', 'EEOOOE', 'EOEEOO', 'EOOEEO', 'EOOOEE', 'EOEOEO', 'EOEOOE', 'EOOEOE'];
+function upce(code) {
+  const d = [...code].map(Number);
+  const body = d.slice(1, 7).map((n, i) => (UPCE_PARITY[d[7]][i] === 'O' ? L[n] : [...inv(L[n])].reverse().join(''))).join('');
+  return `101${body}010101`;
+}
 const dir = mkdtempSync(join(tmpdir(), 'pantry-e2e-'));
-const setup = await chromium.launch();
-const canvas = await setup.newPage({ viewport: { width: 1280, height: 720 } });
-await canvas.setContent(`<body style="margin:0;background:#fff"><svg width="1280" height="720">${bars}</svg></body>`);
-await canvas.screenshot({ path: join(dir, 'code.png') });
-await setup.close();
-execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-loop', '1', '-i', join(dir, 'code.png'), '-t', '1', '-r', '10', '-pix_fmt', 'yuv420p', join(dir, 'code.y4m')]);
+async function video(name, modules) {
+  const bars = [...modules].map((b, i) => (b === '1' ? `<rect x="${(1280 - modules.length * 6) / 2 + i * 6}" y="210" width="6" height="300"/>` : '')).join('');
+  const setup = await chromium.launch();
+  const canvas = await setup.newPage({ viewport: { width: 1280, height: 720 } });
+  await canvas.setContent(`<body style="margin:0;background:#fff"><svg width="1280" height="720">${bars}</svg></body>`);
+  await canvas.screenshot({ path: join(dir, `${name}.png`) });
+  await setup.close();
+  execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-loop', '1', '-i', join(dir, `${name}.png`), '-t', '1', '-r', '10', '-pix_fmt', 'yuv420p', join(dir, `${name}.y4m`)]);
+  return join(dir, `${name}.y4m`);
+}
+const nutellaVideo = await video('ean13', ean13(BARCODE));
+const UPCE = '04252614'; // UPC-A 042100005264
+const upceVideo = await video('upce', upce(UPCE));
+
+// ---- a small built-in copy, made by the real build script ----
+const pantryDir = new URL('../../apps/pantry/', import.meta.url).pathname;
+const offTsv = ['code\tproduct_name\tquantity\tbrands\timage_small_url', '0042100005264\tFlat toothpicks\t750 pcs\tDiamond\t'].join('\n') + '\n';
+writeFileSync(join(dir, 'facts.csv'), offTsv);
+execFileSync('gzip', ['-f', join(dir, 'facts.csv')]);
+execFileSync('node', [join(pantryDir, 'scripts/build-catalog.mjs'), '--facts', `o=${join(dir, 'facts.csv.gz')}`, '--out', join(dir, 'barcodes')], { stdio: 'pipe' });
 
 // ---- simulated services ----
 let lookups = 0;
 let online = true;
+/** Open Food Facts answers "temporarily unavailable" while this is set. */
+let offDown = false;
 const cloud = { sha: null, text: null };
 async function openFoodFacts(route) {
   const host = new URL(route.request().url()).host;
   if (host === 'world.openfoodfacts.org') lookups++;
   if (!online) return route.abort('internetdisconnected');
+  if (offDown && host === 'world.openfoodfacts.org') return route.fulfill({ status: 503, contentType: 'text/html', body: '<html>Page temporarily unavailable</html>' });
   if (host === 'api.nal.usda.gov') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ foods: [] }) });
   if (host !== 'world.openfoodfacts.org') return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ status: 0 }) });
   const code = new URL(route.request().url()).pathname.match(/product\/(\d+)\.json/)?.[1];
@@ -68,12 +91,20 @@ async function github(route) {
 }
 
 const IPHONE = `html:root { --safe-top: 59px; --safe-bottom: 34px; }`;
-const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${join(dir, 'code.y4m')}`] });
+const camera = (file) => chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${file}`] });
+let browser = await camera(nutellaVideo);
 const errors = [];
+let builtInCopy = true;
+async function serveCopy(route) {
+  const file = join(dir, 'barcodes', new URL(route.request().url()).pathname.split('/barcodes/')[1] ?? '');
+  if (!builtInCopy || !existsSync(file)) return route.fulfill({ status: 404, body: '' });
+  return route.fulfill({ status: 200, contentType: file.endsWith('.json') ? 'application/json' : 'application/gzip', body: readFileSync(file) });
+}
 async function install() {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: shots ? 2 : 1, permissions: ['camera'], serviceWorkers: 'block' });
   await context.route(/^https:\/\/(world\.open\w+facts\.org|api\.nal\.usda\.gov)\//, openFoodFacts);
   await context.route('https://api.github.com/**', github);
+  await context.route('**/barcodes/**', serveCopy);
   await context.addInitScript((token) => localStorage.setItem('hub-cloud', JSON.stringify({ owner: 'me', repo: 'data', token })), TOKEN);
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -199,6 +230,35 @@ await dp.getByRole('alert').getByText(/not allowed to use the camera/).waitFor()
 await dp.getByRole('button', { name: 'Add by hand instead' }).click();
 await dp.getByRole('dialog', { name: 'Add to pantry' }).waitFor();
 await denied.close();
+
+// A small pack's UPC-E code, while Open Food Facts is down: the built-in copy answers.
+await browser.close();
+browser = await camera(upceVideo);
+offDown = true;
+online = true;
+const small = await install();
+await small.page.getByRole('button', { name: 'Scan barcode' }).click();
+const flat = small.page.getByRole('dialog', { name: 'Add to pantry' });
+await flat.waitFor({ timeout: 15000 });
+assert.equal(await flat.getByLabel('Name').inputValue(), 'Flat toothpicks, 750 pcs');
+await flat.getByText('Barcode 0042100005264').waitFor();
+await flat.getByRole('button', { name: 'Close' }).click();
+
+// Down, and not in the copy: "could not be reached", with Try again, which finds it once it is back.
+builtInCopy = false;
+await small.page.getByRole('button', { name: 'Scan barcode' }).click();
+const retry = small.page.getByRole('dialog', { name: 'Add to pantry' });
+await retry.getByText(/could not be reached/).waitFor({ timeout: 15000 });
+await shot(small.page, '7-try-again');
+offDown = false;
+builtInCopy = true;
+await retry.getByRole('button', { name: 'Try again' }).click();
+await small.page.waitForFunction(() => document.querySelector('[role=dialog] input')?.value === 'Flat toothpicks, 750 pcs', null, { timeout: 15000 });
+
+// Settings shows the size of the built-in copy.
+await small.page.goto(`${url}#/settings`);
+await small.page.getByText(/Built-in copy: 1 products/).waitFor();
+await small.context.close();
 
 await browser.close();
 assert.deepEqual(errors, []);

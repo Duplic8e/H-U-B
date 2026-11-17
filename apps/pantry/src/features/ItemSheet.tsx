@@ -16,13 +16,15 @@ export interface Draft {
   expiresOn?: string;
   /** Shown above the form, e.g. why the name is blank. */
   note?: string;
+  /** The lookup could not reach every database, so it is worth asking again. */
+  retry?: boolean;
   /** How the sheet was reached, for its title and button. */
   mode: 'new' | 'another' | 'edit';
 }
 
 const TITLE = { new: 'Add to pantry', another: 'Add another', edit: 'Edit item' } as const;
 
-export function ItemSheet({ draft, onClose }: { draft: Draft; onClose: () => void }) {
+export function ItemSheet({ draft, onClose, onRetry }: { draft: Draft; onClose: () => void; onRetry?: () => void }) {
   const { repo, toast } = useApp();
   const [name, setName] = useState(draft.name);
   const [brand, setBrand] = useState(draft.brand ?? '');
@@ -56,7 +58,12 @@ export function ItemSheet({ draft, onClose }: { draft: Draft; onClose: () => voi
             <p class="muted small">{draft.barcode ? `Barcode ${draft.barcode}` : 'No barcode'}</p>
           </div>
         </div>
-        {draft.note && <p class="note" role="status">{draft.note}</p>}
+        {draft.note && (
+          <div class="note" role="status">
+            <p style={{ margin: 0 }}>{draft.note}</p>
+            {onRetry && <button type="button" class="btn small" style={{ marginTop: 10 }} onClick={onRetry}>Try again</button>}
+          </div>
+        )}
         <label class="field"><span>Name</span>
           <input class="input" value={name} required autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="e.g. Chopped tomatoes" autofocus={!draft.name} onInput={(e) => setName(e.currentTarget.value)} />
         </label>

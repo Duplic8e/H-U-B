@@ -21,10 +21,12 @@ async function draftFor(barcode: string): Promise<Draft> {
   if (known) return { mode: 'new', barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: 1 };
   const result = await lookupBarcode(barcode);
   if (result.status === 'found') return { mode: 'new', barcode, ...result.product, quantity: 1 };
-  return {
-    mode: 'new', barcode, name: '', quantity: 1,
-    note: result.status === 'offline' ? 'Could not look this product up (no connection). Type its name and Pantry will remember it.' : 'None of the product databases know this barcode. Type its name and Pantry will remember it.',
-  };
+  const NOTES = {
+    offline: 'Could not look this product up (no connection). Try again, or type its name and Pantry will remember it.',
+    incomplete: 'Some product databases could not be reached right now, and the others do not know this barcode. Try again, or type its name.',
+    not_found: 'None of the product databases know this barcode. Type its name and Pantry will remember it.',
+  } as const;
+  return { mode: 'new', barcode, name: '', quantity: 1, note: NOTES[result.status], retry: result.status !== 'not_found' };
 }
 
 export function App() {
@@ -74,7 +76,7 @@ export function App() {
         {route === 'settings' ? <Settings /> : <List onScan={() => setScanning(true)} onAdd={addByHand} onOpen={open} />}
         {scanning && <Scanner onCode={(code) => void onCode(code)} onClose={closeScanner} onManual={addByHand} />}
         {looking && <Sheet title="Looking up product" onClose={closeLooking}><p class="empty" role="status">Barcode {looking}…</p></Sheet>}
-        {draft && <ItemSheet key={`${draft.mode}:${draft.existing?.id ?? draft.barcode ?? ''}`} draft={draft} onClose={closeDraft} />}
+        {draft && <ItemSheet key={`${draft.mode}:${draft.existing?.id ?? draft.barcode ?? ''}:${draft.note ?? ''}`} draft={draft} onClose={closeDraft} onRetry={draft.retry && draft.barcode ? () => { const code = draft.barcode!; setDraft(null); void onCode(code); } : undefined} />}
         {message && (
           <div class="toast" role="status">
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{message.message}</span>

@@ -32,8 +32,13 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,wasm}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
-        // Product photos are cached the first time each is shown, so the list looks the same offline.
-        runtimeCaching: [{ urlPattern: /^https:\/\/images\.open\w+facts\.org\//, handler: 'CacheFirst', options: { cacheName: 'pantry-product-photos', cacheableResponse: { statuses: [0, 200] }, expiration: { maxEntries: 500 } } }],
+        runtimeCaching: [
+          // The built-in barcode copy: each ~10 KB file is kept once fetched, and refreshed after a week.
+          { urlPattern: /\/barcodes\/\d{4}\.gz$/, handler: 'CacheFirst', options: { cacheName: 'pantry-barcodes', expiration: { maxEntries: 2000, maxAgeSeconds: 7 * 86400 } } },
+          { urlPattern: /\/barcodes\/meta\.json$/, handler: 'NetworkFirst', options: { cacheName: 'pantry-barcodes-meta' } },
+          // Product photos are cached the first time each is shown, so the list looks the same offline.
+          { urlPattern: /^https:\/\/images\.open\w+facts\.org\//, handler: 'CacheFirst', options: { cacheName: 'pantry-product-photos', cacheableResponse: { statuses: [0, 200] }, expiration: { maxEntries: 500 } } },
+        ],
       },
     }),
   ],

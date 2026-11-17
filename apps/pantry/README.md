@@ -2,10 +2,12 @@
 
 What food is at home, for the Hub. Served at `/H-U-B/pantry/`.
 
-- **Scan a barcode** with the camera and the product's name, brand and photo are filled in from five free
-  databases asked at once: Open Food Facts, USDA FoodData Central (US branded foods), Open Products Facts,
-  Open Beauty Facts and Open Pet Food Facts. Only the barcode is sent. USDA uses the shared `DEMO_KEY`
-  unless a free key of your own is saved in Settings.
+- **Scan a barcode** with the camera and the product's name, brand and photo are filled in. Pantry asks
+  Open Food Facts, Open Products Facts, Open Beauty Facts and Open Pet Food Facts live, and its own
+  built-in copy of all four plus USDA's US branded foods (about 4.6 million products), all at once. The
+  built-in copy answers when the online databases are slow or down. Only the barcode is sent. A database
+  that fails gets a second try, and a lookup that could not reach every database says so and offers
+  Try again, instead of claiming the product is unknown.
 - **Quantity**: scanning a product you already have adds one. Minus uses one up; the last one removes
   the item, with Undo.
 - **Expiry date**, optional, one per product. Dated items list soonest first; expired items and those
@@ -28,14 +30,29 @@ npm run dev
 iPhone Safari has no built-in barcode reader, so the app bundles one:
 [barcode-detector](https://github.com/Sec-ant/barcode-detector), which runs ZXing as WebAssembly. The
 decoder file is part of the build and precached, so scanning itself works offline. It reads EAN-13, EAN-8,
-UPC-A and UPC-E; a UPC-A code is stored as EAN-13 with a leading zero so both readings are one product.
+UPC-A and UPC-E. A UPC-A code is stored as EAN-13 with a leading zero, and a UPC-E code (small packs) is
+written out in full, so every reading of a product is one key.
 
 The camera needs HTTPS (or localhost) and the user's permission.
 
 `../../tests/e2e/pantry.mjs` drives the built app in Chromium with a fake camera showing a generated barcode.
 
+## The built-in copy
+
+`scripts/fetch-catalog.sh` downloads the Open Food Facts, Open Products/Beauty/Pet Food Facts and USDA
+Branded Foods bulk files (about 2 GB) and `scripts/build-catalog.mjs` turns them into 10,000 small gzip
+files under `/H-U-B/pantry/barcodes/`, keyed by the 4 digits before a code's check digit, so one lookup
+downloads about 10 KB. Codes with a wrong check digit, case codes and discontinued USDA products are left
+out. The deploy workflow rebuilds it every Monday and caches it between deploys; files a phone has
+fetched are kept for a week, so a product scanned before is found offline.
+
+To build it locally: `bash scripts/fetch-catalog.sh /tmp/pantry-downloads dist/barcodes` (needs about
+8 GB of memory and 5 minutes).
+
 ## Adding a product database
 
-Add an entry to `SOURCES` in `src/data/lookup.ts`. It must be callable from a browser (it has to send
+A live one goes in `sources()` in `src/data/lookup.ts`. It must be callable from a browser (it has to send
 `Access-Control-Allow-Origin` for any site) without a secret. UPCitemdb, Barcode Lookup, Go-UPC and
-EAN-Search were ruled out for that reason: they either refuse browser calls or need a paid key.
+EAN-Search were ruled out for that reason: they either refuse browser calls or need a paid key. A
+database with a bulk download can go in the built-in copy instead: add a reader to
+`scripts/build-catalog.mjs` and a letter for it in `src/data/catalog.ts`.

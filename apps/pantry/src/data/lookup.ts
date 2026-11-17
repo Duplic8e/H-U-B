@@ -1,3 +1,5 @@
+import { readShard, shardOf, withSize } from './catalog';
+
 /** What a barcode lookup can tell us about a product. */
 export interface Product {
   name: string;
@@ -5,58 +7,41 @@ export interface Product {
   imageUrl?: string;
 }
 
-export type LookupResult = { status: 'found'; product: Product; source: string } | { status: 'not_found' } | { status: 'offline' };
+/** `incomplete`: some databases could not be reached and none of the others know the product. */
+export type LookupResult = { status: 'found'; product: Product; source: string } | { status: 'not_found' } | { status: 'incomplete' } | { status: 'offline' };
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+
+// Every place a product's name can be. Canadian products often have only an English or French one.
+const NAME_FIELDS = ['product_name_en', 'product_name', 'product_name_fr', 'abbreviated_product_name', 'generic_name_en', 'generic_name', 'generic_name_fr',
+  'product_name_es', 'product_name_de', 'product_name_it', 'product_name_nl', 'product_name_pt'] as const;
 
 /** Reads an Open Food Facts v2 product response (its sister databases answer the same way). Null when it holds no usable name. */
 export function parseProduct(raw: unknown): Product | null {
   const body = raw as { status?: unknown; product?: Record<string, unknown> } | null;
   const p = body?.product;
   if (!p || (body.status !== 1 && body.status !== 'success')) return null;
-  const base = text(p.product_name) ?? text(p.product_name_en) ?? text(p.generic_name);
+  const brand = text(p.brands)?.split(',')[0]?.trim() || undefined;
+  // With no name at all, the brand ("Takis") beats an empty box.
+  const base = NAME_FIELDS.map((f) => text(p[f])).find(Boolean) ?? brand;
   if (!base) return null;
-  // "500 g", "6 x 330 ml": tells two sizes of the same product apart in the list.
-  const size = text(p.quantity)?.replace(/\s*\be$/, '').trim() || undefined; // drops the EU "℮" estimate mark, stored as a trailing "e"
+  // Drops the EU "℮" estimate mark, which the database stores as a trailing "e".
+  const size = text(p.quantity)?.replace(/\s*\be$/, '').trim() || undefined;
   const image = text(p.image_front_small_url) ?? text(p.image_small_url) ?? text(p.image_front_url);
-  return {
-    name: size && !base.toLowerCase().includes(size.toLowerCase()) ? `${base}, ${size}` : base,
-    brand: text(p.brands)?.split(',')[0]?.trim() || undefined,
-    imageUrl: image?.startsWith('https://') ? image : undefined,
-  };
-}
-
-const bare = (code: string) => code.replace(/\D/g, '').replace(/^0+/, '');
-/** "COCA-COLA CLASSIC" → "Coca-Cola Classic": USDA names are in capitals. */
-const titleCase = (s: string) => (s === s.toUpperCase() ? s.toLowerCase().replace(/(^|[\s\-/(&])(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase()) : s);
-
-/** Reads a USDA FoodData Central search response, keeping only a food whose barcode is this one. */
-export function parseUsda(raw: unknown, barcode: string): Product | null {
-  const foods = (raw as { foods?: unknown } | null)?.foods;
-  if (!Array.isArray(foods)) return null;
-  const hit = (foods as Array<Record<string, unknown>>).find((f) => typeof f?.gtinUpc === 'string' && bare(f.gtinUpc) === bare(barcode) && text(f.description));
-  if (!hit) return null;
-  const base = titleCase(text(hit.description)!);
-  const size = text(hit.packageWeight)?.split('/')[0]?.trim();
-  const brand = text(hit.brandName) ?? text(hit.brandOwner);
-  return { name: size && !base.toLowerCase().includes(size.toLowerCase()) ? `${base}, ${size}` : base, brand: brand ? titleCase(brand) : undefined };
-}
-
-export const USDA_KEY_STORAGE = 'pantry-usda-key';
-/** The user's own free USDA key if they saved one; otherwise the shared demo key, which allows only a few lookups an hour. */
-export function usdaKey(): string {
-  try { return globalThis.localStorage?.getItem(USDA_KEY_STORAGE)?.trim() || 'DEMO_KEY'; } catch { return 'DEMO_KEY'; }
+  return { name: withSize(base, size), brand, imageUrl: image?.startsWith('https://') ? image : undefined };
 }
 
 interface Source {
   name: string;
   url: (barcode: string) => string;
-  /** The product, or null when this database does not have it. */
-  read: (res: Response, barcode: string) => Promise<Product | null>;
+  /** The product, or null when this database does not have it. Throws when it could not answer. */
+  read: (res: Response, barcode: string) => Promise<(Product & { source?: string }) | null>;
+  /** The copy served with the app; its failures do not mean the online databases are unreachable. */
+  builtIn?: boolean;
 }
 
-const FIELDS = 'fields=product_name,product_name_en,generic_name,brands,quantity,image_front_small_url,image_small_url,image_front_url';
+const FIELDS = `fields=${[...NAME_FIELDS, 'brands', 'quantity', 'image_front_small_url', 'image_small_url', 'image_front_url'].join(',')}`;
 const facts = (name: string, host: string): Source => ({
   name,
   url: (b) => `https://${host}/api/v2/product/${encodeURIComponent(b)}.json?${FIELDS}`,
@@ -67,35 +52,55 @@ const facts = (name: string, host: string): Source => ({
   },
 });
 
-/** Every database asked, best first: when two know the product, the earlier one's answer is used.
- *  All are free, need no account, and allow calls from a browser. Only the barcode is sent. */
-export const SOURCES: Source[] = [
-  facts('Open Food Facts', 'world.openfoodfacts.org'),
-  {
-    name: 'USDA FoodData Central',
-    url: (b) => `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(bare(b))}&dataType=Branded&pageSize=10&api_key=${encodeURIComponent(usdaKey())}`,
-    read: async (res, barcode) => {
-      if (!res.ok) throw new Error(`USDA ${res.status}`);
-      return parseUsda(await res.json(), barcode);
-    },
-  },
-  facts('Open Products Facts', 'world.openproductsfacts.org'),
-  facts('Open Beauty Facts', 'world.openbeautyfacts.org'),
-  facts('Open Pet Food Facts', 'world.openpetfoodfacts.org'),
-];
+const builtIn = (base: string): Source => ({
+  name: 'Built-in copy',
+  url: (b) => `${base}barcodes/${shardOf(b)}.gz`,
+  read: readShard,
+  builtIn: true,
+});
 
-/** Asks every database at once. Found if any has it; offline only if none could be reached. */
-export async function lookupBarcode(barcode: string, doFetch: Fetch = (i, init) => fetch(i, init), timeoutMs = 8000, sources: Source[] = SOURCES): Promise<LookupResult> {
+/** Every place asked, best first: when two know the product, the earlier one's answer is used.
+ *  The live databases have this week's additions; the built-in copy (Open Food Facts and its sister
+ *  databases, plus USDA's US branded foods) answers when they are slow or down. Only the barcode is sent. */
+export function sources(base: string = import.meta.env.BASE_URL): Source[] {
+  return [
+    facts('Open Food Facts', 'world.openfoodfacts.org'),
+    builtIn(base),
+    facts('Open Products Facts', 'world.openproductsfacts.org'),
+    facts('Open Beauty Facts', 'world.openbeautyfacts.org'),
+    facts('Open Pet Food Facts', 'world.openpetfoodfacts.org'),
+  ];
+}
+
+const pause = (ms: number, signal: AbortSignal) => new Promise<void>((resolve) => {
+  const t = setTimeout(resolve, ms);
+  signal.addEventListener('abort', () => { clearTimeout(t); resolve(); }, { once: true });
+});
+
+/** Asks every database at once, giving each that fails a second try. */
+export async function lookupBarcode(barcode: string, doFetch: Fetch = (i, init) => fetch(i, init), timeoutMs = 10000, list: Source[] = sources(), retryMs = 700): Promise<LookupResult> {
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), timeoutMs);
+  const ask = async (s: Source) => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return { product: await s.read(await doFetch(s.url(barcode), { signal: abort.signal }), barcode) };
+      } catch {
+        if (attempt >= 1 || abort.signal.aborted) return 'failed' as const;
+        await pause(retryMs, abort.signal);
+      }
+    }
+  };
   try {
-    const answers = await Promise.all(sources.map(async (s) => {
-      try { return { product: await s.read(await doFetch(s.url(barcode), { signal: abort.signal }), barcode) }; } catch { return 'failed' as const; }
-    }));
-    const i = answers.findIndex((a) => a !== 'failed' && a.product);
-    const hit = answers[i];
-    if (hit && hit !== 'failed' && hit.product) return { status: 'found', product: hit.product, source: sources[i]!.name };
-    return answers.every((a) => a === 'failed') ? { status: 'offline' } : { status: 'not_found' };
+    const answers = await Promise.all(list.map(ask));
+    for (const [i, a] of answers.entries()) {
+      if (a === 'failed' || !a.product) continue;
+      const { source, ...product } = a.product;
+      return { status: 'found', product, source: source ?? list[i]!.name };
+    }
+    const online = answers.filter((_, i) => !list[i]!.builtIn);
+    if (online.every((a) => a === 'failed')) return { status: 'offline' };
+    return online.some((a) => a === 'failed') ? { status: 'incomplete' } : { status: 'not_found' };
   } finally {
     clearTimeout(timer);
   }

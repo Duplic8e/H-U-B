@@ -1,0 +1,160 @@
+// Builds Pantry's built-in barcode index from the Open Food Facts and USDA bulk downloads, so a
+// scan finds a product even when those servers are slow or down.
+//
+//   node scripts/build-catalog.mjs --facts o=en.openfoodfacts.org.products.csv.gz,p=en.openproductsfacts.org.products.csv.gz,... \
+//     --usda FoodData_Central_branded_food_csv_<date>/ --out dist/barcodes
+//
+// Sources, in the order they win when two know a product: o Open Food Facts, p Open Products Facts,
+// b Open Beauty Facts, f Open Pet Food Facts (all the same file format), u USDA branded foods.
+// Writes one gzip file per shard (the 4 digits before the check digit, so lookups fetch ~10 KB),
+// plus meta.json. Each line: code \t name \t brand \t quantity \t image \t source.
+// Either input can be left out. Lines are sorted, so the same inputs give the same files.
+import { createReadStream, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
+import { createGunzip, gzipSync } from 'node:zlib';
+import { join } from 'node:path';
+
+const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1]]] : acc), []));
+const out = args.out ?? 'dist/barcodes';
+
+// ---- shared with src/data/catalog.ts ----
+export const bare = (code) => code.replace(/^0+/, '');
+export const shardOf = (code) => bare(code).padStart(5, '0').slice(-5, -1);
+function validCheckDigit(code) {
+  if (!/^\d{8,14}$/.test(code)) return false;
+  const d = [...code].map(Number);
+  const check = d.pop();
+  const sum = d.reverse().reduce((s, x, i) => s + x * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === check;
+}
+/** Open Food Facts keeps a product's photos in a folder named after its code, split 3/3/3/rest. */
+export const offFolder = (code) => code.padStart(13, '0').replace(/^(\d{3})(\d{3})(\d{3})(\d+)$/, '$1/$2/$3/$4');
+const FACTS = { o: 'openfoodfacts', p: 'openproductsfacts', b: 'openbeautyfacts', f: 'openpetfoodfacts' };
+
+/** A copy that does not keep the whole source line alive: V8 substrings point into their parent,
+ *  and holding a few fields of each of 4 million long lines would otherwise hold every line. */
+const own = (s) => Buffer.from(s, 'utf8').toString('utf8');
+const clean = (s) => (s ?? '').replace(/[\t\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+/** "COCA-COLA CLASSIC" → "Coca-Cola Classic"; names that already mix case are left alone. */
+const titleCase = (s) => (s && s === s.toUpperCase() ? s.toLowerCase().replace(/(^|[\s\-/(&.])(\p{L})/gu, (_, a, b) => a + b.toUpperCase()) : s);
+/** EAN-13 as scanned: digits only, 8 to 14 long, a correct check digit; 12 and 14 digit codes become 13. */
+function scanForm(raw) {
+  let code = (raw ?? '').replace(/\D/g, '');
+  if (code.length === 12) code = `0${code}`;
+  if (code.length === 14 && code.startsWith('0')) code = code.slice(1);
+  // 14-digit codes that remain are case and pallet codes, never on a retail pack.
+  if (!(code.length === 8 || code.length === 13) || !validCheckDigit(code)) return null;
+  return code;
+}
+
+/** bare code → the line for it: code, name, brand, quantity, image, source */
+const rows = new Map();
+const counts = { o: 0, p: 0, b: 0, f: 0, u: 0 };
+let usdaTotal = 0;
+/** GS1 unit codes in USDA package sizes, as written on a pack. */
+const UNITS = { LBR: 'lb', ONZ: 'oz', OZA: 'fl oz', GRM: 'g', KGM: 'kg', MLT: 'ml', LTR: 'L', GLL: 'gal', CT: 'ct', EA: 'ct' };
+const usdaSize = (s) => s.replace(/^(\d+(?:\.\d+)?)\s*([A-Za-z]+)$/, (all, n, u) => (UNITS[u.toUpperCase()] ? `${Number(n)} ${UNITS[u.toUpperCase()]}` : all));
+
+async function readFacts(source, path) {
+  const images = `https://images.${FACTS[source]}.org/images/products/`;
+  const lines = createInterface({ input: createReadStream(path).pipe(createGunzip()), crlfDelay: Infinity });
+  let col;
+  for await (const line of lines) {
+    const f = line.split('\t');
+    if (!col) { col = Object.fromEntries(f.map((name, i) => [name, i])); continue; }
+    const raw = f[col.code] ?? '';
+    const code = scanForm(raw);
+    if (!code) continue;
+    const brand = clean(f[col.brands]).split(',')[0]?.trim() ?? '';
+    const name = clean(f[col.product_name]) || clean(f[col.abbreviated_product_name]) || clean(f[col.generic_name]) || brand;
+    if (!name) continue;
+    const quantity = clean(f[col.quantity]).replace(/\s*\be$/, '');
+    let image = '';
+    const url = f[col.image_small_url] ?? '';
+    if (url.startsWith(images)) {
+      const path = url.slice(images.length);
+      const folder = `${offFolder(code)}/`;
+      image = path.startsWith(folder) ? path.slice(folder.length) : path;
+    }
+    const key = own(bare(code));
+    // Earlier databases win; within one, the first row for a code does.
+    if (rows.has(key)) continue;
+    counts[source]++;
+    rows.set(key, own([code, name, brand, quantity, image, source].join('\t')));
+  }
+}
+
+/** A streaming CSV reader that handles quoted fields with commas, quotes and newlines. */
+async function* csv(path) {
+  let field = '', row = [], quoted = false, header;
+  for await (const chunk of createReadStream(path, { encoding: 'utf8', highWaterMark: 1 << 20 })) {
+    for (let i = 0; i < chunk.length; i++) {
+      const c = chunk[i];
+      if (quoted) {
+        if (c === '"') { if (chunk[i + 1] === '"') { field += '"'; i++; } else quoted = false; }
+        else field += c;
+      } else if (c === '"') quoted = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n') {
+        row.push(field.endsWith('\r') ? field.slice(0, -1) : field);
+        if (!header) header = row; else yield Object.fromEntries(header.map((h, j) => [h, row[j] ?? '']));
+        row = []; field = '';
+      } else field += c;
+    }
+  }
+}
+
+async function readUsda(dir) {
+  // A product appears once per label update; the latest one wins.
+  const latest = new Map();
+  for await (const r of csv(join(dir, 'branded_food.csv'))) {
+    if (r.discontinued_date) continue;
+    const code = scanForm(r.gtin_upc);
+    if (!code) continue;
+    const key = bare(code);
+    const prev = latest.get(key);
+    if (prev && prev.date > r.available_date) continue;
+    latest.set(key, { id: r.fdc_id, code, date: r.available_date, brand: titleCase(clean(r.brand_name) || clean(r.brand_owner)), size: usdaSize(clean(r.package_weight).split('/')[0].trim()) });
+  }
+  const byId = new Map([...latest.values()].map((v) => [v.id, v]));
+  for await (const r of csv(join(dir, 'food.csv'))) {
+    const v = byId.get(r.fdc_id);
+    if (!v) continue;
+    const name = titleCase(clean(r.description));
+    if (!name) continue;
+    usdaTotal++;
+    const key = bare(v.code);
+    // The open databases usually have a photo and a better name, so they win when both know the product.
+    if (rows.has(key)) continue;
+    counts.u++;
+    rows.set(key, own([v.code, name, v.brand, v.size, '', 'u'].join('\t')));
+  }
+}
+
+const started = Date.now();
+for (const pair of (args.facts ?? '').split(',').filter(Boolean)) {
+  const [source, path] = pair.split('=');
+  if (!FACTS[source] || !path) throw new Error(`--facts takes letter=path pairs, letters ${Object.keys(FACTS).join(', ')}`);
+  await readFacts(source, path);
+  console.log(`${FACTS[source]}: ${counts[source]} new products (${Math.round((Date.now() - started) / 1000)}s)`);
+}
+if (args.usda) { await readUsda(args.usda); console.log(`USDA: ${usdaTotal} products, ${counts.u} not in the open databases`); }
+
+const shards = new Map();
+for (const [key, row] of rows) {
+  const s = shardOf(key);
+  if (!shards.has(s)) shards.set(s, []);
+  shards.get(s).push([key, row]);
+}
+rmSync(out, { recursive: true, force: true });
+mkdirSync(out, { recursive: true });
+let bytes = 0;
+for (const [s, lines] of shards) {
+  const body = gzipSync(lines.sort((a, b) => (a[0] < b[0] ? -1 : 1)).map((l) => l[1]).join('\n') + '\n', { level: 9 });
+  // A fixed mtime, so an unchanged shard is byte-identical between builds.
+  body[4] = body[5] = body[6] = body[7] = 0;
+  bytes += body.length;
+  writeFileSync(join(out, `${s}.gz`), body);
+}
+writeFileSync(join(out, 'meta.json'), JSON.stringify({ builtAt: new Date().toISOString(), products: rows.size, bySource: counts }));
+console.log(`${rows.size} products in ${shards.size} shards, ${(bytes / 1e6).toFixed(1)} MB (${Math.round((Date.now() - started) / 1000)}s)`);

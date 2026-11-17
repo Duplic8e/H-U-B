@@ -9,9 +9,15 @@ name: Build and deploy the Hub
 #   /H-U-B/pantry/   Pantry         (apps/pantry)
 # Each app's unit tests run before anything deploys. Ledger's full checks
 # (lint, browser tests) run separately in ledger-checks.yml.
+#
+# Pantry's built-in barcode copy (/H-U-B/pantry/barcodes/) is built from the Open Food Facts and USDA
+# downloads once a week and cached in between, so most deploys reuse it.
 on:
   push:
     branches: [main]
+  # Mondays: rebuild Pantry's barcode copy from that week's downloads.
+  schedule:
+    - cron: '23 7 * * 1'
   # Actions tab → "Build and deploy the Hub" → Run workflow.
   workflow_dispatch:
 
@@ -85,6 +91,25 @@ jobs:
           BASE_PATH: ${{ env.SITE_BASE }}pantry/
           VITE_HUB_URL: ${{ env.SITE_BASE }}
 
+      - name: Week number
+        id: week
+        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Pantry's barcode copy
+        id: catalog
+        uses: actions/cache@v4
+        with:
+          path: apps/pantry/catalog
+          key: pantry-catalog-${{ steps.week.outputs.week }}-${{ hashFiles('apps/pantry/scripts/build-catalog.mjs', 'apps/pantry/scripts/fetch-catalog.sh') }}
+
+      # About 2 GB of downloads and 5 minutes. If it fails, Pantry deploys without the copy and its
+      # scans use the online databases only; Settings says so.
+      - name: Build Pantry's barcode copy
+        if: steps.catalog.outputs.cache-hit != 'true'
+        continue-on-error: true
+        working-directory: apps/pantry
+        run: bash scripts/fetch-catalog.sh "$RUNNER_TEMP/catalog-downloads" catalog
+
       - name: Assemble the site
         run: |
           mkdir -p site
@@ -94,6 +119,8 @@ jobs:
           cp -R apps/lift/dist site/lift
           cp -R apps/french/dist site/french
           cp -R apps/pantry/dist site/pantry
+          if [ -f apps/pantry/catalog/meta.json ]; then cp -R apps/pantry/catalog site/pantry/barcodes
+          else echo "::warning::Pantry's barcode copy is missing; this deploy leaves it out."; fi
           touch site/.nojekyll
 
       - uses: actions/upload-pages-artifact@v3
