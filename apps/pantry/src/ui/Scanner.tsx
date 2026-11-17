@@ -43,7 +43,7 @@ export function Scanner({ onCode, onClose, onManual }: { onCode: (barcode: strin
           try {
             if (el.readyState >= 2 && el.videoWidth) {
               for (const found of await detector.detect(el)) {
-                const code = normalizeBarcode(found.rawValue);
+                const code = normalizeBarcode(found.rawValue, found.format);
                 if (code && !stopped) { stopped = true; handlers.current.onCode(code); return; }
               }
             }

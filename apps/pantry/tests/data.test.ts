@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { normalizeBarcode } from '../src/data/barcode';
+import { expandUpcE, normalizeBarcode, validCheckDigit } from '../src/data/barcode';
 import { PantryDB } from '../src/data/db';
 import { daysUntil, expiryLabel, expiryState, matches, sortItems, today } from '../src/data/expiry';
 import { createRepo } from '../src/data/repo';
@@ -18,6 +18,15 @@ describe('barcodes', () => {
     expect(normalizeBarcode('0049000028904')).toBe('0049000028904');
     expect(normalizeBarcode('3017620422003')).toBe('3017620422003');
     expect(normalizeBarcode('96385074')).toBe('96385074');
+  });
+  it('writes out the short UPC-E code on small packs in full', () => {
+    expect(expandUpcE('04252614')).toBe('042100005264');
+    expect(expandUpcE('01234565')).toBe('012345000065');
+    expect(expandUpcE('01234531')).toBe('012300000451');
+    expect(normalizeBarcode('04252614', 'upc_e')).toBe('0042100005264');
+    expect(normalizeBarcode('0042100005264', 'upc_e')).toBe('0042100005264');
+    expect(validCheckDigit('0042100005264')).toBe(true);
+    expect(normalizeBarcode('96385074', 'ean_8')).toBe('96385074');
   });
   it('rejects anything that is not a retail barcode', () => {
     expect(normalizeBarcode('https://example.com')).toBeNull();
