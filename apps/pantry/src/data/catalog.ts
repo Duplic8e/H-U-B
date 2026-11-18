@@ -1,5 +1,6 @@
 import { bareBarcode } from './barcode';
 import type { Product } from './lookup';
+import { decode } from './nutrition';
 
 /** Pantry's own copy of the product databases, built weekly by scripts/build-catalog.mjs and served
  *  with the app: one small gzip file per shard, so a lookup downloads about 10 KB. */
@@ -23,7 +24,7 @@ export function withSize(name: string, size?: string): string {
 export function findInShard(text: string, barcode: string): (Product & { source: string }) | null {
   const want = bareBarcode(barcode);
   for (const line of text.split('\n')) {
-    const [code = '', name = '', brand = '', quantity = '', image = '', source = ''] = line.split('\t');
+    const [code = '', name = '', brand = '', quantity = '', image = '', source = '', facts = ''] = line.split('\t');
     if (!name || bareBarcode(code) !== want) continue;
     const host = IMAGE_HOSTS[source];
     return {
@@ -31,6 +32,7 @@ export function findInShard(text: string, barcode: string): (Product & { source:
       brand: brand || undefined,
       imageUrl: image && host ? `https://images.${host}.org/images/products/${image.includes('/') ? image : `${imageFolder(code)}/${image}`}` : undefined,
       source: `${SOURCE_NAMES[source] ?? 'Built-in copy'} (built-in copy)`,
+      ...(decode(facts) ? { nutrition: decode(facts)! } : {}),
     };
   }
   return null;

@@ -8,6 +8,14 @@ What food is at home, for the Hub. Served at `/H-U-B/pantry/`.
   built-in copy answers when the online databases are slow or down. Only the barcode is sent. A database
   that fails gets a second try, and a lookup that could not reach every database says so and offers
   Try again, instead of claiming the product is unknown.
+- **Groceries mode**: switch the scanner to Groceries and scan everything from your bags in one go. Each
+  pack ticks and flashes; one held in view counts once, and moving it away and back counts another.
+  Products are looked up in the background, three at a time. Review shows them all with counts (and what
+  is already in the pantry); fix any that were not found, set expiry dates, then Add all. The list is
+  kept on the phone until it is added, so closing the app loses nothing.
+- **Nutrition facts** per serving and per 100 g (100 ml for drinks), in the Canadian label's order, from
+  the databases (Open Food Facts first, USDA filling the gaps). Items saved before this get theirs the
+  first time they are opened online.
 - **Quantity**: scanning a product you already have adds one. Minus uses one up; the last one removes
   the item, with Undo.
 - **Expiry date**, optional, one per product. Dated items list soonest first; expired items and those
@@ -41,7 +49,7 @@ The camera needs HTTPS (or localhost) and the user's permission.
 
 `scripts/fetch-catalog.sh` downloads the Open Food Facts, Open Products/Beauty/Pet Food Facts and USDA
 Branded Foods bulk files (about 2 GB) and `scripts/build-catalog.mjs` turns them into 10,000 small gzip
-files under `/H-U-B/pantry/barcodes/`, keyed by the 4 digits before a code's check digit, so one lookup
+files under `/H-U-B/pantry/barcodes/`, with nutrition where known,, keyed by the 4 digits before a code's check digit, so one lookup
 downloads about 10 KB. Codes with a wrong check digit, case codes and discontinued USDA products are left
 out. The deploy workflow rebuilds it every Monday and caches it between deploys; files a phone has
 fetched are kept for a week, so a product scanned before is found offline.

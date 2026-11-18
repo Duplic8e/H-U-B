@@ -1,10 +1,12 @@
 import { readShard, shardOf, withSize } from './catalog';
+import { fromOpenFoodFacts, type Nutrition } from './nutrition';
 
 /** What a barcode lookup can tell us about a product. */
 export interface Product {
   name: string;
   brand?: string;
   imageUrl?: string;
+  nutrition?: Nutrition;
 }
 
 /** `incomplete`: some databases could not be reached and none of the others know the product. */
@@ -29,7 +31,8 @@ export function parseProduct(raw: unknown): Product | null {
   // Drops the EU "℮" estimate mark, which the database stores as a trailing "e".
   const size = text(p.quantity)?.replace(/\s*\be$/, '').trim() || undefined;
   const image = text(p.image_front_small_url) ?? text(p.image_small_url) ?? text(p.image_front_url);
-  return { name: withSize(base, size), brand, imageUrl: image?.startsWith('https://') ? image : undefined };
+  const nutrition = fromOpenFoodFacts(p) ?? undefined;
+  return { name: withSize(base, size), brand, imageUrl: image?.startsWith('https://') ? image : undefined, ...(nutrition ? { nutrition } : {}) };
 }
 
 interface Source {
@@ -41,7 +44,7 @@ interface Source {
   builtIn?: boolean;
 }
 
-const FIELDS = `fields=${[...NAME_FIELDS, 'brands', 'quantity', 'image_front_small_url', 'image_small_url', 'image_front_url'].join(',')}`;
+const FIELDS = `fields=${[...NAME_FIELDS, 'brands', 'quantity', 'image_front_small_url', 'image_small_url', 'image_front_url', 'nutriments', 'serving_size', 'serving_quantity', 'product_quantity_unit'].join(',')}`;
 const facts = (name: string, host: string): Source => ({
   name,
   url: (b) => `https://${host}/api/v2/product/${encodeURIComponent(b)}.json?${FIELDS}`,
@@ -93,10 +96,13 @@ export async function lookupBarcode(barcode: string, doFetch: Fetch = (i, init) 
   };
   try {
     const answers = await Promise.all(list.map(ask));
-    for (const [i, a] of answers.entries()) {
-      if (a === 'failed' || !a.product) continue;
-      const { source, ...product } = a.product;
-      return { status: 'found', product, source: source ?? list[i]!.name };
+    const found = answers.map((a, i) => (a === 'failed' || !a.product ? null : { ...a.product, source: a.product.source ?? list[i]!.name })).filter((a) => !!a);
+    const best = found[0];
+    if (best) {
+      const { source, ...product } = best;
+      // The best answer names the product; nutrition can come from the next one that has it.
+      const nutrition = found.find((f) => f.nutrition)?.nutrition;
+      return { status: 'found', product: { ...product, ...(nutrition ? { nutrition } : {}) }, source };
     }
     const online = answers.filter((_, i) => !list[i]!.builtIn);
     if (online.every((a) => a === 'failed')) return { status: 'offline' };

@@ -8,6 +8,7 @@ import { Header, Icon, Stepper, Thumb, useLive } from '../ui/kit';
 export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () => void; onOpen: (item: Item) => void }) {
   const { repo, toast } = useApp();
   const items = useLive(() => repo.listItems());
+  const scans = useLive(() => repo.listScans());
   const [query, setQuery] = useState('');
   const day = today();
   const shown = useMemo(() => sortItems((items ?? []).filter((i) => matches(i, query))), [items, query]);
@@ -26,13 +27,19 @@ export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () 
         <a class="icon-btn" href="#/settings" aria-label="Settings"><Icon name="gear" /></a>
       </>} />
       <div class="page">
+        {scans && scans.length > 0 && (
+          <div class="banner" role="status">
+            <p>{scans.length} scanned {scans.length === 1 ? 'product' : 'products'} to add</p>
+            <a class="btn small primary" href="#/groceries">Review</a>
+          </div>
+        )}
         {items && items.length > 0 && (
           <input class="input search" type="search" aria-label="Search the pantry" placeholder="Search" value={query} enterkeyhint="search" onInput={(e) => setQuery(e.currentTarget.value)} />
         )}
-        {items && items.length === 0 && (
+        {items && items.length === 0 && !scans?.length && (
           <div class="empty" style={{ marginTop: '18vh' }}>
             <p style={{ fontSize: 20, fontWeight: 650, color: 'var(--text)', margin: '0 0 6px' }}>Nothing in the pantry yet</p>
-            <p style={{ margin: 0 }}>Scan the barcode on a food item to add it, or tap + to type one in.</p>
+            <p style={{ margin: 0 }}>Scan the barcode on a food item to add it, or tap + to type one in. Unpacking groceries? Switch the scanner to Groceries and scan everything in one go.</p>
           </div>
         )}
         {items && items.length > 0 && shown.length === 0 && <p class="empty">Nothing matches “{query.trim()}”.</p>}

@@ -8,17 +8,25 @@ import { PantrySync } from './sync/sync';
 import { ItemSheet, type Draft } from './features/ItemSheet';
 import { List } from './features/List';
 import { Settings } from './features/Settings';
-import { Scanner } from './ui/Scanner';
+import { Scanner, type Batch, type ScanMode } from './ui/Scanner';
+import { unlockSound } from './ui/beep';
+import { Groceries } from './features/Groceries';
+import { GroceryLookups } from './data/groceryLookups';
+import { useLive } from './ui/kit';
 import { Sheet } from './ui/kit';
 
 const repo = getRepo();
 const sync = new PantrySync(repo);
+const groceryLookups = new GroceryLookups(repo);
+
+const MODE_KEY = 'pantry-scan-mode';
+const savedMode = (): ScanMode => { try { return localStorage.getItem(MODE_KEY) === 'many' ? 'many' : 'one'; } catch { return 'one'; } };
 
 /** The sheet for a barcode that was just read: the item it already is, the product it was, or a fresh lookup. */
 async function draftFor(barcode: string): Promise<Draft> {
   const known = await repo.findByBarcode(barcode);
-  if (known && !known.deletedAt) return { mode: 'another', existing: known, barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: known.quantity + 1, expiresOn: known.expiresOn };
-  if (known) return { mode: 'new', barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: 1 };
+  if (known && !known.deletedAt) return { mode: 'another', existing: known, barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: known.quantity + 1, expiresOn: known.expiresOn, nutrition: known.nutrition };
+  if (known) return { mode: 'new', barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: 1, nutrition: known.nutrition };
   const result = await lookupBarcode(barcode);
   if (result.status === 'found') return { mode: 'new', barcode, ...result.product, quantity: 1 };
   const NOTES = {
@@ -37,6 +45,10 @@ export function App() {
   /** The barcode being looked up; cleared when that sheet is closed, which cancels the scan. */
   const pending = useRef<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [scanMode, setScanMode] = useState<ScanMode>(savedMode);
+  const [lastScan, setLastScan] = useState<string | null>(null);
+  const scans = useLive(() => repo.listScans());
+  useEffect(() => { if (scans) groceryLookups.update(scans); }, [scans]);
 
   useEffect(() => {
     let stop: (() => void) | undefined;
@@ -64,8 +76,20 @@ export function App() {
     if (next) setDraft(next);
     else setMessage({ message: 'Something went wrong reading that barcode.' });
   }, []);
+  const changeMode = useCallback((mode: ScanMode) => {
+    setScanMode(mode);
+    try { localStorage.setItem(MODE_KEY, mode); } catch { /* remembered for this visit only */ }
+  }, []);
+  const onBatchCode = useCallback((barcode: string) => { setLastScan(barcode); void repo.addScan(barcode); }, []);
+  const startScan = useCallback(() => { unlockSound(); setLastScan(null); setScanning(true); }, []);
+  const review = useCallback(() => { setScanning(false); location.hash = '#/groceries'; }, []);
+  const last = scans?.find((s) => s.barcode === lastScan);
+  const batch: Batch = {
+    count: (scans ?? []).reduce((n, s) => n + s.count, 0),
+    last: last ? { name: last.name || (last.lookup === undefined ? 'Looking up…' : `Barcode ${last.barcode}`), count: last.count } : undefined,
+  };
   const addByHand = useCallback(() => { setScanning(false); setDraft({ mode: 'new', name: '', quantity: 1 }); }, []);
-  const open = useCallback((item: Item) => setDraft({ mode: 'edit', existing: item, barcode: item.barcode, name: item.name, brand: item.brand, imageUrl: item.imageUrl, quantity: item.quantity, expiresOn: item.expiresOn }), []);
+  const open = useCallback((item: Item) => setDraft({ mode: 'edit', existing: item, barcode: item.barcode, name: item.name, brand: item.brand, imageUrl: item.imageUrl, quantity: item.quantity, expiresOn: item.expiresOn, nutrition: item.nutrition }), []);
   const closeScanner = useCallback(() => setScanning(false), []);
   const closeDraft = useCallback(() => setDraft(null), []);
   const closeLooking = useCallback(() => { pending.current = null; setLooking(null); }, []);
@@ -73,8 +97,8 @@ export function App() {
   return (
     <Ctx.Provider value={ctx}>
       <div class="app">
-        {route === 'settings' ? <Settings /> : <List onScan={() => setScanning(true)} onAdd={addByHand} onOpen={open} />}
-        {scanning && <Scanner onCode={(code) => void onCode(code)} onClose={closeScanner} onManual={addByHand} />}
+        {route === 'settings' ? <Settings /> : route === 'groceries' ? <Groceries onScanMore={() => { changeMode('many'); startScan(); }} /> : <List onScan={startScan} onAdd={addByHand} onOpen={open} />}
+        {scanning && <Scanner mode={scanMode} onMode={changeMode} onCode={(code) => void onCode(code)} onBatchCode={onBatchCode} batch={batch} onReview={review} onClose={closeScanner} onManual={addByHand} />}
         {looking && <Sheet title="Looking up product" onClose={closeLooking}><p class="empty" role="status">Barcode {looking}…</p></Sheet>}
         {draft && <ItemSheet key={`${draft.mode}:${draft.existing?.id ?? draft.barcode ?? ''}:${draft.note ?? ''}`} draft={draft} onClose={closeDraft} onRetry={draft.retry && draft.barcode ? () => { const code = draft.barcode!; setDraft(null); void onCode(code); } : undefined} />}
         {message && (
