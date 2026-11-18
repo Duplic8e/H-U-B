@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lookupBarcode, parseProduct } from '../src/data/lookup';
+import { forgetLookup, lookupBarcode, lookupOnce, parseProduct, type LookupResult } from '../src/data/lookup';
 
 const nutella = { code: '3017620422003', status: 1, product: { product_name: 'Nutella', brands: 'Ferrero, Nutella', quantity: '400 g e', image_front_small_url: 'https://images.openfoodfacts.org/images/products/301/762/042/2003/front_en.200.jpg' } };
 
@@ -64,5 +64,28 @@ describe('looking a barcode up', () => {
     expect(await lookup('1', () => down())).toEqual({ status: 'offline' });
     expect(await lookup('1', (url) => (builtIn(url) ? new Response('', { status: 404 }) : Promise.reject(new TypeError('Failed to fetch'))))).toEqual({ status: 'offline' });
     expect(await lookup('1', () => Promise.reject(new TypeError('Failed to fetch')))).toEqual({ status: 'offline' });
+  });
+});
+
+describe('one lookup per product', () => {
+  it('shares one lookup between everyone asking, and retries only failures', async () => {
+    let calls = 0;
+    const found = async (): Promise<LookupResult> => { calls++; return { status: 'found', source: 'x', product: { name: 'A' } }; };
+    const [a, b] = await Promise.all([lookupOnce('111', found), lookupOnce('111', found)]);
+    expect(a).toBe(b);
+    expect(calls).toBe(1);
+    await lookupOnce('111', found);
+    expect(calls).toBe(1);
+    forgetLookup('111');
+    await lookupOnce('111', found);
+    expect(calls).toBe(2);
+
+    let fails = 0;
+    const offline = async (): Promise<LookupResult> => { fails++; return { status: 'offline' }; };
+    await lookupOnce('222', offline);
+    await new Promise((r) => setTimeout(r, 0));
+    await lookupOnce('222', offline);
+    expect(fails).toBe(2);
+    expect(await lookupOnce('333', () => Promise.reject(new Error('boom')))).toEqual({ status: 'offline' });
   });
 });

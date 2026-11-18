@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 import { Ctx, type AppCtx, type Toast } from './context';
-import { lookupBarcode } from './data/lookup';
 import { getRepo } from './data/repo';
 import type { Item } from './data/types';
 import { useRoute } from './router';
@@ -11,44 +10,49 @@ import { Settings } from './features/Settings';
 import { Scanner, type Batch, type ScanMode } from './ui/Scanner';
 import { unlockSound } from './ui/beep';
 import { Groceries } from './features/Groceries';
-import { GroceryLookups } from './data/groceryLookups';
+import { GroceryLookups, ItemLookups } from './data/groceryLookups';
 import { useLive } from './ui/kit';
-import { Sheet } from './ui/kit';
 
 const repo = getRepo();
 const sync = new PantrySync(repo);
 const groceryLookups = new GroceryLookups(repo);
+const itemLookups = new ItemLookups(repo);
 
 const MODE_KEY = 'pantry-scan-mode';
 const savedMode = (): ScanMode => { try { return localStorage.getItem(MODE_KEY) === 'many' ? 'many' : 'one'; } catch { return 'one'; } };
 
-/** The sheet for a barcode that was just read: the item it already is, the product it was, or a fresh lookup. */
+/** The sheet for a barcode that was just read: the item it already is, the product it was, or a new
+ *  one that looks itself up while the sheet is open. Never waits on the network. */
 async function draftFor(barcode: string): Promise<Draft> {
   const known = await repo.findByBarcode(barcode);
-  if (known && !known.deletedAt) return { mode: 'another', existing: known, barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: known.quantity + 1, expiresOn: known.expiresOn, nutrition: known.nutrition };
-  if (known) return { mode: 'new', barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: 1, nutrition: known.nutrition };
-  const result = await lookupBarcode(barcode);
-  if (result.status === 'found') return { mode: 'new', barcode, ...result.product, quantity: 1 };
-  const NOTES = {
-    offline: 'Could not look this product up (no connection). Try again, or type its name and Pantry will remember it.',
-    incomplete: 'Some product databases could not be reached right now, and the others do not know this barcode. Try again, or type its name.',
-    not_found: 'None of the product databases know this barcode. Type its name and Pantry will remember it.',
-  } as const;
-  return { mode: 'new', barcode, name: '', quantity: 1, note: NOTES[result.status], retry: result.status !== 'not_found' };
+  if (known && !known.deletedAt) return { mode: 'another', existing: known, barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: known.quantity + 1, expiresOn: known.expiresOn, nutrition: known.nutrition, lookUp: known.lookup === 'pending' };
+  if (known?.name) return { mode: 'new', barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: 1, nutrition: known.nutrition };
+  return { mode: 'new', barcode, name: '', quantity: 1, lookUp: true };
 }
 
 export function App() {
   const route = useRoute();
   const [message, setMessage] = useState<Toast | null>(null);
   const [scanning, setScanning] = useState(false);
-  const [looking, setLooking] = useState<string | null>(null);
-  /** The barcode being looked up; cleared when that sheet is closed, which cancels the scan. */
-  const pending = useRef<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [scanMode, setScanMode] = useState<ScanMode>(savedMode);
   const [lastScan, setLastScan] = useState<string | null>(null);
   const scans = useLive(() => repo.listScans());
   useEffect(() => { if (scans) groceryLookups.update(scans); }, [scans]);
+  const items = useLive(() => repo.listItems());
+  useEffect(() => { if (items) itemLookups.update(items); }, [items]);
+  // Lookups that could not reach the databases are tried again when the connection comes back
+  // and when the app is reopened.
+  useEffect(() => {
+    const again = () => {
+      itemLookups.retry();
+      void repo.listScans().then((all) => { for (const s of all) if (s.lookup === 'incomplete' || s.lookup === 'offline') void repo.updateScan(s.barcode, { lookup: undefined }); });
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') again(); };
+    window.addEventListener('online', again);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.removeEventListener('online', again); document.removeEventListener('visibilitychange', onVisible); };
+  }, []);
 
   useEffect(() => {
     let stop: (() => void) | undefined;
@@ -66,15 +70,10 @@ export function App() {
 
   const onCode = useCallback(async (barcode: string) => {
     setScanning(false);
-    pending.current = barcode;
-    setLooking(barcode);
-    let next: Draft | undefined;
-    try { next = await draftFor(barcode); } catch (e) { console.error('Lookup failed', e); }
-    if (pending.current !== barcode) return;
-    pending.current = null;
-    setLooking(null);
-    if (next) setDraft(next);
-    else setMessage({ message: 'Something went wrong reading that barcode.' });
+    try { setDraft(await draftFor(barcode)); } catch (e) {
+      console.error('Reading the pantry failed', e);
+      setMessage({ message: 'Something went wrong reading that barcode.' });
+    }
   }, []);
   const changeMode = useCallback((mode: ScanMode) => {
     setScanMode(mode);
@@ -89,18 +88,16 @@ export function App() {
     last: last ? { name: last.name || (last.lookup === undefined ? 'Looking up…' : `Barcode ${last.barcode}`), count: last.count } : undefined,
   };
   const addByHand = useCallback(() => { setScanning(false); setDraft({ mode: 'new', name: '', quantity: 1 }); }, []);
-  const open = useCallback((item: Item) => setDraft({ mode: 'edit', existing: item, barcode: item.barcode, name: item.name, brand: item.brand, imageUrl: item.imageUrl, quantity: item.quantity, expiresOn: item.expiresOn, nutrition: item.nutrition }), []);
+  const open = useCallback((item: Item) => setDraft({ mode: 'edit', existing: item, barcode: item.barcode, name: item.name, brand: item.brand, imageUrl: item.imageUrl, quantity: item.quantity, expiresOn: item.expiresOn, nutrition: item.nutrition, lookUp: item.lookup === 'pending' }), []);
   const closeScanner = useCallback(() => setScanning(false), []);
   const closeDraft = useCallback(() => setDraft(null), []);
-  const closeLooking = useCallback(() => { pending.current = null; setLooking(null); }, []);
 
   return (
     <Ctx.Provider value={ctx}>
       <div class="app">
         {route === 'settings' ? <Settings /> : route === 'groceries' ? <Groceries onScanMore={() => { changeMode('many'); startScan(); }} /> : <List onScan={startScan} onAdd={addByHand} onOpen={open} />}
         {scanning && <Scanner mode={scanMode} onMode={changeMode} onCode={(code) => void onCode(code)} onBatchCode={onBatchCode} batch={batch} onReview={review} onClose={closeScanner} onManual={addByHand} />}
-        {looking && <Sheet title="Looking up product" onClose={closeLooking}><p class="empty" role="status">Barcode {looking}…</p></Sheet>}
-        {draft && <ItemSheet key={`${draft.mode}:${draft.existing?.id ?? draft.barcode ?? ''}:${draft.note ?? ''}`} draft={draft} onClose={closeDraft} onRetry={draft.retry && draft.barcode ? () => { const code = draft.barcode!; setDraft(null); void onCode(code); } : undefined} />}
+        {draft && <ItemSheet key={`${draft.mode}:${draft.existing?.id ?? draft.barcode ?? ''}`} draft={draft} onClose={closeDraft} />}
         {message && (
           <div class="toast" role="status">
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{message.message}</span>

@@ -111,3 +111,20 @@ export async function lookupBarcode(barcode: string, doFetch: Fetch = (i, init) 
     clearTimeout(timer);
   }
 }
+
+const cache = new Map<string, Promise<LookupResult>>();
+
+/** One lookup per barcode for this visit, shared by the scan sheet, groceries and the background
+ *  resolver, so a product is never asked for twice at once. Failures are forgotten, so the next ask retries. */
+export function lookupOnce(barcode: string, lookup: (b: string) => Promise<LookupResult> = (b) => lookupBarcode(b)): Promise<LookupResult> {
+  const have = cache.get(barcode);
+  if (have) return have;
+  const p = lookup(barcode).catch((): LookupResult => ({ status: 'offline' }));
+  cache.set(barcode, p);
+  void p.then((r) => { if (r.status === 'incomplete' || r.status === 'offline') cache.delete(barcode); });
+  return p;
+}
+
+export function forgetLookup(barcode: string) {
+  cache.delete(barcode);
+}

@@ -120,6 +120,8 @@ async function install() {
 }
 const shot = async (page, name) => { if (shots) await page.screenshot({ path: join(shots, `pantry-${name}.png`) }); };
 const row = (page, name) => page.locator('.list > li', { hasText: name });
+/** The sheet opens at once; the name arrives when the lookup does. */
+const nameBecomes = (page, value) => page.waitForFunction((v) => document.querySelector('[role=dialog] input')?.value === v, value, { timeout: 15000 });
 
 const { context, page } = await install();
 await page.getByText('Nothing in the pantry yet').waitFor();
@@ -131,7 +133,7 @@ await page.getByRole('dialog', { name: 'Scan a barcode' }).waitFor();
 if (shots) { await page.waitForTimeout(250); await shot(page, '2-scanner'); }
 const sheet = page.getByRole('dialog', { name: 'Add to pantry' });
 await sheet.waitFor({ timeout: 15000 });
-assert.equal(await sheet.getByLabel('Name').inputValue(), 'Nutella, 400 g');
+await nameBecomes(page, 'Nutella, 400 g');
 assert.equal(await sheet.getByLabel('Brand (optional)').inputValue(), 'Ferrero');
 await sheet.getByText(`Barcode ${BARCODE}`).waitFor();
 // Nutrition facts, per serving and per 100 g.
@@ -208,12 +210,12 @@ online = false;
 await again.page.getByRole('button', { name: 'Scan barcode' }).click();
 const back = again.page.getByRole('dialog', { name: 'Add to pantry' });
 await back.waitFor({ timeout: 15000 });
-assert.equal(await back.getByLabel('Name').inputValue(), 'Nutella, 400 g');
+await nameBecomes(again.page, 'Nutella, 400 g');
 assert.equal(lookups, 1);
 await back.getByRole('button', { name: 'Close' }).click();
 await again.context.close();
 
-// A product nobody knows, with no connection: the barcode is kept and the name is typed.
+// No connection: saved without a name, then filled in in the background once the connection is back.
 const offline = await install();
 await offline.page.evaluate(() => indexedDB.deleteDatabase('pantry'));
 cloud.sha = cloud.text = null;
@@ -223,11 +225,15 @@ await offline.page.getByRole('button', { name: 'Scan barcode' }).click();
 const unknown = offline.page.getByRole('dialog', { name: 'Add to pantry' });
 await unknown.waitFor({ timeout: 15000 });
 await unknown.getByText(/no connection/).waitFor();
-assert.equal(await unknown.getByRole('button', { name: 'Add to pantry' }).isDisabled(), true);
 await shot(offline.page, '6-not-found');
-await unknown.getByLabel('Name').fill('Hazelnut spread');
 await unknown.getByRole('button', { name: 'Add to pantry' }).click();
-await row(offline.page, 'Hazelnut spread').waitFor();
+await offline.page.getByText('Added. Looking it up in the background.').waitFor();
+await row(offline.page, 'Looking up…').waitFor();
+await shot(offline.page, '6b-waiting');
+online = true;
+await offline.page.evaluate(() => window.dispatchEvent(new Event('online')));
+await row(offline.page, 'Nutella, 400 g').waitFor({ timeout: 15000 });
+assert.equal(await row(offline.page, 'Looking up…').count(), 0);
 await offline.context.close();
 
 // Camera refused: a reason and a way on.
@@ -250,12 +256,14 @@ const small = await install();
 await small.page.getByRole('button', { name: 'Scan barcode' }).click();
 const flat = small.page.getByRole('dialog', { name: 'Add to pantry' });
 await flat.waitFor({ timeout: 15000 });
-assert.equal(await flat.getByLabel('Name').inputValue(), 'Flat toothpicks, 750 pcs');
+await nameBecomes(small.page, 'Flat toothpicks, 750 pcs');
 await flat.getByText('Barcode 0042100005264').waitFor();
 await flat.getByRole('button', { name: 'Close' }).click();
 
 // Down, and not in the copy: "could not be reached", with Try again, which finds it once it is back.
+// (A reload, since a product found once is remembered for the rest of the visit.)
 builtInCopy = false;
+await small.page.reload();
 await small.page.getByRole('button', { name: 'Scan barcode' }).click();
 const retry = small.page.getByRole('dialog', { name: 'Add to pantry' });
 await retry.getByText(/could not be reached/).waitFor({ timeout: 15000 });
@@ -275,6 +283,7 @@ await browser.close();
 browser = await camera(groceriesVideo);
 offDown = false;
 builtInCopy = true;
+cloud.sha = cloud.text = null; // a fresh phone with an empty backup
 const bags = await install();
 const gp = bags.page;
 await gp.getByRole('button', { name: 'Scan barcode' }).click();

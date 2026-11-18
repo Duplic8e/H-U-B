@@ -1,5 +1,6 @@
 import { barcodeId } from './barcode';
 import { PantryDB } from './db';
+import type { LookupResult } from './lookup';
 import type { Nutrition } from './nutrition';
 import type { Dump, Item, Scan } from './types';
 
@@ -15,6 +16,7 @@ export interface ItemInput {
   quantity: number;
   expiresOn?: string;
   nutrition?: Nutrition;
+  lookup?: Item['lookup'];
 }
 
 export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
@@ -45,9 +47,28 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
       await db.items.put({
         id, updatedAt: stamp(), barcode: input.barcode, name: input.name.trim(), brand: clean(input.brand), imageUrl: clean(input.imageUrl),
         quantity: Math.max(1, Math.round(input.quantity)), expiresOn: input.expiresOn || undefined, nutrition: input.nutrition,
+        // A name typed or found ends the wait; an item without one keeps waiting for its lookup.
+        lookup: input.name.trim() ? undefined : input.lookup ?? (input.barcode ? 'pending' : undefined),
       });
       changed();
       return id;
+    },
+    /** Fills in what a background lookup found for an item saved before it finished. Anything the
+     *  user typed in the meantime stays. */
+    async applyLookup(id: string, result: LookupResult) {
+      const row = await db.items.get(id);
+      if (!row || row.lookup !== 'pending') return;
+      if (result.status === 'incomplete' || result.status === 'offline') return;
+      const at = stamp();
+      if (result.status === 'not_found') await db.items.put({ ...row, lookup: 'not_found', updatedAt: at });
+      else {
+        const p = result.product;
+        await db.items.put({
+          ...row, updatedAt: at, lookup: undefined,
+          name: row.name.trim() || p.name, brand: row.brand ?? p.brand, imageUrl: row.imageUrl ?? p.imageUrl, nutrition: row.nutrition ?? p.nutrition,
+        });
+      }
+      changed();
     },
     /** Fills in nutrition looked up after the item was saved. */
     async setNutrition(id: string, nutrition: Nutrition) {
@@ -112,33 +133,34 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
     async clearScans() {
       await db.scans.clear();
     },
-    /** Adds every named scan to the pantry: more of a product already there, or a new item.
-     *  Scans still without a name stay on the list. Returns how many packs were added. */
-    async addScansToPantry(): Promise<{ added: number; left: number }> {
+    /** Adds every scan to the pantry: more of a product already there, or a new item. Ones still
+     *  being looked up are added too and filled in in the background. Returns how many packs were added. */
+    async addScansToPantry(): Promise<{ added: number }> {
       const scans = await db.scans.toArray();
-      const ready = scans.filter((s) => s.name.trim());
       const at = stamp();
       await db.transaction('rw', db.items, db.scans, async () => {
-        for (const s of ready) {
+        for (const s of scans) {
           const id = barcodeId(s.barcode);
           const row = await db.items.get(id);
           const live = row && !row.deletedAt ? row : undefined;
+          const typed = s.name.trim();
+          const name = s.edited || !live?.name ? typed : live.name;
           // One date per product: the earliest pack.
           const dates = [live?.expiresOn, s.expiresOn].filter((d): d is string => !!d).sort();
           await db.items.put({
-            id, updatedAt: at, barcode: s.barcode,
-            name: s.edited || !live ? s.name.trim() : live.name,
+            id, updatedAt: at, barcode: s.barcode, name,
             brand: (s.edited || !live ? clean(s.brand) : live.brand) ?? live?.brand,
             imageUrl: s.imageUrl ?? live?.imageUrl,
             quantity: (live?.quantity ?? 0) + s.count,
             expiresOn: dates[0],
             nutrition: live?.nutrition ?? s.nutrition ?? row?.nutrition,
+            lookup: name ? undefined : s.lookup === 'not_found' ? 'not_found' : 'pending',
           });
           await db.scans.delete(s.barcode);
         }
       });
-      if (ready.length) changed();
-      return { added: ready.reduce((n, s) => n + s.count, 0), left: scans.length - ready.length };
+      if (scans.length) changed();
+      return { added: scans.reduce((n, s) => n + s.count, 0) };
     },
 
     // ---- sync and backup ----

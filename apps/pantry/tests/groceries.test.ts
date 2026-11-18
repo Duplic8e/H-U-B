@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import { PantryDB } from '../src/data/db';
-import { GroceryLookups } from '../src/data/groceryLookups';
+import { GroceryLookups, ItemLookups } from '../src/data/groceryLookups';
 import type { LookupResult } from '../src/data/lookup';
 import { createRepo } from '../src/data/repo';
 import { repeatFilter } from '../src/ui/Scanner';
@@ -73,7 +73,7 @@ describe('scanning groceries', () => {
     expect((await repo.listScans())[0]).toMatchObject({ lookup: 'known', name: 'Nutella', nutrition: NUT });
   });
 
-  it('adds everything named to the pantry at once, and leaves what still needs a name', async () => {
+  it('adds everything to the pantry at once, unfinished lookups included', async () => {
     const repo = fresh();
     await repo.saveItem({ barcode: '3017620422003', name: 'Nutella', quantity: 2, expiresOn: '2027-05-01' });
     for (const b of ['3017620422003', '3017620422003', '0757528051723', '0000000000017']) await repo.addScan(b);
@@ -82,12 +82,55 @@ describe('scanning groceries', () => {
     await repo.updateScan('0000000000017', { lookup: 'not_found' });
     let pushes = 0;
     repo.onLocalChange(() => pushes++);
-    expect(await repo.addScansToPantry()).toEqual({ added: 5, left: 1 });
+    await repo.addScan('5000112637922'); // still being looked up
+    expect(await repo.addScansToPantry()).toEqual({ added: 7 });
     expect(pushes).toBe(1);
-    const items = Object.fromEntries((await repo.listItems()).map((i) => [i.name, i]));
-    expect(items['Nutella']).toMatchObject({ quantity: 4, expiresOn: '2027-02-01' });
-    expect(items['Takis Fuego']).toMatchObject({ quantity: 3, nutrition: NUT, barcode: '0757528051723' });
-    expect((await repo.listScans()).map((s) => s.barcode)).toEqual(['0000000000017']);
+    const items = Object.fromEntries((await repo.listItems()).map((i) => [i.barcode, i]));
+    expect(items['3017620422003']).toMatchObject({ name: 'Nutella', quantity: 4, expiresOn: '2027-02-01' });
+    expect(items['0757528051723']).toMatchObject({ name: 'Takis Fuego', quantity: 3, nutrition: NUT });
+    expect(items['0000000000017']).toMatchObject({ name: '', lookup: 'not_found', quantity: 1 });
+    expect(items['5000112637922']).toMatchObject({ name: '', lookup: 'pending', quantity: 1 });
+    expect(await repo.listScans()).toEqual([]);
+  });
+
+  it('finishes items saved before their lookup, keeping what was typed, and retries failures', async () => {
+    const repo = fresh();
+    const a = await repo.saveItem({ barcode: '0757528051723', name: '', quantity: 1 });
+    const b = await repo.saveItem({ barcode: '3017620422003', name: '', brand: 'Mine', quantity: 2 });
+    const c = await repo.saveItem({ barcode: '0000000000017', name: '', quantity: 1 });
+    const d = await repo.saveItem({ barcode: '5000112637922', name: '', quantity: 1 });
+    expect((await repo.listItems()).every((i) => i.lookup === 'pending')).toBe(true);
+    let down = true;
+    let asked = 0;
+    const lookups = new ItemLookups(repo, async (code): Promise<LookupResult> => {
+      asked++;
+      if (code === '0000000000017') return { status: 'not_found' };
+      if (code === '5000112637922' && down) return { status: 'offline' };
+      return { status: 'found', source: 'x', product: { name: `Product ${code}`, brand: 'Theirs', nutrition: NUT } };
+    });
+    lookups.update(await repo.listItems());
+    await lookups.idle();
+    const byId = async () => Object.fromEntries((await repo.listItems()).map((i) => [i.id, i]));
+    let items = await byId();
+    expect(items[a]).toMatchObject({ name: 'Product 0757528051723', brand: 'Theirs', nutrition: NUT, lookup: undefined });
+    expect(items[b]).toMatchObject({ name: 'Product 3017620422003', brand: 'Mine', quantity: 2 });
+    expect(items[c]).toMatchObject({ name: '', lookup: 'not_found' });
+    expect(items[d]).toMatchObject({ name: '', lookup: 'pending' });
+    // Not again until asked to retry (the connection came back, or the app was reopened).
+    lookups.update(await repo.listItems());
+    await lookups.idle();
+    expect(asked).toBe(4);
+    down = false;
+    lookups.retry();
+    await lookups.idle();
+    items = await byId();
+    expect(items[d]).toMatchObject({ name: 'Product 5000112637922', lookup: undefined });
+    // A name typed while it waited is never replaced.
+    const e = await repo.saveItem({ barcode: '4006381333931', name: '', quantity: 1 });
+    await repo.saveItem({ id: e, barcode: '4006381333931', name: 'Typed', quantity: 1 });
+    expect((await byId())[e]).toMatchObject({ name: 'Typed', lookup: undefined });
+    await repo.applyLookup(e, { status: 'found', source: 'x', product: { name: 'Late' } });
+    expect((await byId())[e]!.name).toBe('Typed');
   });
 
   it('brings a used-up product back with the scanned count', async () => {

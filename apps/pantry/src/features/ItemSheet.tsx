@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useApp } from '../context';
 import { today } from '../data/expiry';
-import { lookupBarcode } from '../data/lookup';
+import { forgetLookup, lookupOnce, type LookupResult } from '../data/lookup';
 import type { Nutrition } from '../data/nutrition';
 import type { Item } from '../data/types';
 import { Sheet, Stepper, Thumb } from '../ui/kit';
@@ -21,31 +21,56 @@ export interface Draft {
   quantity: number;
   expiresOn?: string;
   nutrition?: Nutrition;
-  /** Shown above the form, e.g. why the name is blank. */
-  note?: string;
-  /** The lookup could not reach every database, so it is worth asking again. */
-  retry?: boolean;
+  /** Look the barcode up while the sheet is open, filling in what the user has not typed. */
+  lookUp?: boolean;
   /** How the sheet was reached, for its title and button. */
   mode: 'new' | 'another' | 'edit' | 'scan';
 }
 
 const TITLE = { new: 'Add to pantry', another: 'Add another', edit: 'Edit item', scan: 'Scanned item' } as const;
 
-export function ItemSheet({ draft, onClose, onRetry, onSave, onRemove }: {
+const NOTES = {
+  offline: 'Could not look this product up (no connection). Save it anyway and Pantry will look it up when you are back online, or type its name.',
+  incomplete: 'Some product databases could not be reached, and the others do not know this barcode. Save it anyway and Pantry will keep trying, or type its name.',
+  not_found: 'None of the product databases know this barcode. Type its name and Pantry will remember it.',
+} as const;
+
+export function ItemSheet({ draft, onClose, onSave, onRemove }: {
   draft: Draft;
   onClose: () => void;
-  onRetry?: () => void;
   /** Replaces saving to the pantry (groceries review edits its list instead). */
   onSave?: (values: SheetValues) => Promise<void>;
   onRemove?: () => Promise<void>;
 }) {
   const { repo, toast } = useApp();
   const [nutrition, setNutrition] = useState(draft.nutrition);
+  const [imageUrl, setImageUrl] = useState(draft.imageUrl);
+  const [result, setResult] = useState<LookupResult | 'looking' | undefined>(draft.lookUp && draft.barcode ? 'looking' : undefined);
+  /** Fields the user has typed in; a late lookup leaves them alone. */
+  const touched = useRef({ name: false, brand: false });
+  const [attempt, setAttempt] = useState(0);
+  // The lookup runs while the sheet is open; whatever comes back fills the fields not typed in.
+  useEffect(() => {
+    if (!draft.lookUp || !draft.barcode) return;
+    let live = true;
+    setResult('looking');
+    void lookupOnce(draft.barcode).then((r) => {
+      if (!live) return;
+      setResult(r);
+      if (r.status !== 'found') return;
+      const p = r.product;
+      if (!touched.current.name) setName((n) => n || p.name);
+      if (!touched.current.brand) setBrand((b) => b || p.brand || '');
+      setImageUrl((u) => u ?? p.imageUrl);
+      setNutrition((n) => n ?? p.nutrition);
+    });
+    return () => { live = false; };
+  }, [draft.lookUp, draft.barcode, attempt]);
   // Items saved before Pantry read nutrition get it the first time they are opened online.
   useEffect(() => {
-    if (draft.nutrition || !draft.barcode || draft.mode !== 'edit') return;
+    if (draft.nutrition || !draft.barcode || draft.mode !== 'edit' || draft.lookUp) return;
     let live = true;
-    void lookupBarcode(draft.barcode).then((r) => {
+    void lookupOnce(draft.barcode).then((r) => {
       const n = r.status === 'found' ? r.product.nutrition : undefined;
       if (!live || !n) return;
       setNutrition(n);
@@ -59,13 +84,22 @@ export function ItemSheet({ draft, onClose, onRetry, onSave, onRemove }: {
   const [expiresOn, setExpiresOn] = useState(draft.expiresOn ?? '');
   const trimmed = name.trim();
 
+  const notFound = result !== 'looking' && result?.status === 'not_found';
+  // A scanned product can be saved before it has a name: the lookup finishes in the background.
+  const canSave = !!trimmed || !!draft.barcode;
   const save = async (e: Event) => {
     e.preventDefault();
-    if (!trimmed) return;
+    if (!canSave) return;
     if (onSave) { await onSave({ name: trimmed, brand, quantity, expiresOn }); onClose(); return; }
-    await repo.saveItem({ id: draft.existing?.id, barcode: draft.barcode, name: trimmed, brand, imageUrl: draft.imageUrl, quantity, expiresOn, nutrition: nutrition ?? draft.existing?.nutrition });
+    await repo.saveItem({
+      id: draft.existing?.id, barcode: draft.barcode, name: trimmed, brand, imageUrl, quantity, expiresOn,
+      nutrition: nutrition ?? draft.existing?.nutrition, lookup: notFound ? 'not_found' : 'pending',
+    });
     onClose();
-    if (draft.mode !== 'edit') toast({ message: draft.mode === 'another' ? `${trimmed}: now ${quantity}` : `Added ${trimmed}` });
+    if (draft.mode === 'edit') return;
+    if (draft.mode === 'another') toast({ message: `${trimmed}: now ${quantity}` });
+    else if (trimmed) toast({ message: `Added ${trimmed}` });
+    else toast({ message: notFound ? 'Added. Tap it in the list to name it.' : 'Added. Looking it up in the background.' });
   };
 
   const remove = async () => {
@@ -81,23 +115,25 @@ export function ItemSheet({ draft, onClose, onRetry, onSave, onRemove }: {
     <Sheet title={TITLE[draft.mode]} onClose={onClose}>
       <form onSubmit={(e) => void save(e)}>
         <div class="product">
-          <Thumb name={trimmed} src={draft.imageUrl} big />
+          <Thumb name={trimmed || '?'} src={imageUrl} big />
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontWeight: 600, fontSize: 17 }}>{trimmed || 'New item'}</p>
+            <p style={{ fontWeight: 600, fontSize: 17 }}>{trimmed || (result === 'looking' ? 'Looking up…' : 'New item')}</p>
             <p class="muted small">{draft.barcode ? `Barcode ${draft.barcode}` : 'No barcode'}</p>
           </div>
         </div>
-        {draft.note && (
+        {result && result !== 'looking' && result.status !== 'found' && !trimmed && (
           <div class="note" role="status">
-            <p style={{ margin: 0 }}>{draft.note}</p>
-            {onRetry && <button type="button" class="btn small" style={{ marginTop: 10 }} onClick={onRetry}>Try again</button>}
+            <p style={{ margin: 0 }}>{NOTES[result.status]}</p>
+            {result.status !== 'not_found' && <button type="button" class="btn small" style={{ marginTop: 10 }} onClick={() => { if (draft.barcode) forgetLookup(draft.barcode); setAttempt((a) => a + 1); }}>Try again</button>}
           </div>
         )}
         <label class="field"><span>Name</span>
-          <input class="input" value={name} required autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="e.g. Chopped tomatoes" autofocus={!draft.name} onInput={(e) => setName(e.currentTarget.value)} />
+          <input class="input" value={name} required={!draft.barcode} autocomplete="off" autocapitalize="sentences" enterkeyhint="done"
+            placeholder={result === 'looking' ? 'Looking up… (you can save now)' : 'e.g. Chopped tomatoes'} autofocus={!draft.name && !draft.barcode}
+            onInput={(e) => { setName(e.currentTarget.value); touched.current.name = true; }} />
         </label>
         <label class="field"><span>Brand (optional)</span>
-          <input class="input" value={brand} autocomplete="off" autocapitalize="words" enterkeyhint="done" onInput={(e) => setBrand(e.currentTarget.value)} />
+          <input class="input" value={brand} autocomplete="off" autocapitalize="words" enterkeyhint="done" onInput={(e) => { setBrand(e.currentTarget.value); touched.current.brand = true; }} />
         </label>
         <div class="field"><span>Quantity</span>
           <Stepper label="Quantity" value={quantity} min={1} large onChange={setQuantity} />
@@ -109,7 +145,7 @@ export function ItemSheet({ draft, onClose, onRetry, onSave, onRemove }: {
           </div>
         </label>
         <div class="sheet-actions">
-          <button type="submit" class="btn primary block" disabled={!trimmed}>{draft.mode === 'edit' || draft.mode === 'scan' ? 'Save' : draft.mode === 'another' ? `Save, ${quantity} in pantry` : 'Add to pantry'}</button>
+          <button type="submit" class="btn primary block" disabled={!canSave}>{draft.mode === 'edit' || draft.mode === 'scan' ? 'Save' : draft.mode === 'another' ? `Save, ${quantity} in pantry` : 'Add to pantry'}</button>
           {(draft.existing || onRemove) && <button type="button" class="btn danger block" onClick={() => void remove()}>{onRemove ? 'Remove from list' : 'Remove from pantry'}</button>}
         </div>
         {nutrition && <div style={{ marginTop: 20 }}><NutritionFacts nutrition={nutrition} /></div>}

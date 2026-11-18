@@ -21,6 +21,9 @@ export interface Item extends Synced {
   expiresOn?: string;
   /** From the product databases, when they have it. */
   nutrition?: Nutrition;
+  /** Saved before its lookup finished (`pending`, filled in in the background, retried until the
+   *  databases answer), or no database knew it (`not_found`, waiting for a name). */
+  lookup?: 'pending' | 'not_found';
 }
 
 /** A product scanned in groceries mode, waiting to be added. */

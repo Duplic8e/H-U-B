@@ -11,11 +11,17 @@ What food is at home, for the Hub. Served at `/H-U-B/pantry/`.
 - **Groceries mode**: switch the scanner to Groceries and scan everything from your bags in one go. Each
   pack ticks and flashes; one held in view counts once, and moving it away and back counts another.
   Products are looked up in the background, three at a time. Review shows them all with counts (and what
-  is already in the pantry); fix any that were not found, set expiry dates, then Add all. The list is
+  is already in the pantry); fix any that were not found, set expiry dates, then Add all. Add all doesn't
+  wait for lookups still running: those items finish in the background. The list is
   kept on the phone until it is added, so closing the app loses nothing.
 - **Nutrition facts** per serving and per 100 g (100 ml for drinks), in the Canadian label's order, from
   the databases (Open Food Facts first, USDA filling the gaps). Items saved before this get theirs the
   first time they are opened online.
+- **Lookups never make you wait**: a scan opens its sheet at once and the name, brand, photo and
+  nutrition fill in as they arrive (fields you have typed in are left alone). Save straight away and the
+  item shows "Looking up…" until the lookup finishes in the background. One that could not reach the
+  databases is retried automatically when the connection comes back or the app is reopened. Each
+  product is looked up once per visit, however many places ask.
 - **Quantity**: scanning a product you already have adds one. Minus uses one up; the last one removes
   the item, with Undo.
 - **Expiry date**, optional, one per product. Dated items list soonest first; expired items and those
