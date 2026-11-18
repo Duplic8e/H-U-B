@@ -21,7 +21,7 @@ usda=()
 if [ ! -s "$work/usda/food.csv" ]; then
   zip=$(curl -fsSL --retry 3 https://fdc.nal.usda.gov/download-datasets/ | grep -oE 'FoodData_Central_branded_food_csv_[0-9]{4}-[0-9]{2}-[0-9]{2}\.zip' | sort -u | tail -1 || true)
   if [ -n "$zip" ] && get "https://fdc.nal.usda.gov/fdc-datasets/$zip" "$work/usda.zip"; then
-    unzip -o -q -j "$work/usda.zip" '*/branded_food.csv' '*/food.csv' -d "$work/usda"
+    unzip -o -q -j "$work/usda.zip" '*/branded_food.csv' '*/food.csv' '*/food_nutrient.csv' -d "$work/usda"
   fi
 fi
 if [ -s "$work/usda/food.csv" ]; then usda=(--usda "$work/usda"); else echo "::warning::Could not download USDA branded foods; the built-in copy leaves them out this week."; fi

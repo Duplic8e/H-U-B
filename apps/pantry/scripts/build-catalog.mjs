@@ -7,9 +7,11 @@
 // Sources, in the order they win when two know a product: o Open Food Facts, p Open Products Facts,
 // b Open Beauty Facts, f Open Pet Food Facts (all the same file format), u USDA branded foods.
 // Writes one gzip file per shard (the 4 digits before the check digit, so lookups fetch ~10 KB),
-// plus meta.json. Each line: code \t name \t brand \t quantity \t image \t source.
+// plus meta.json. Each line: code \t name \t brand \t quantity \t image \t source \t nutrition, where
+// nutrition is "per;amounts;serving size;serving" with the amounts in the order of AMOUNTS below
+// (per 100 g, or 100 ml for drinks). src/data/nutrition.ts reads it back.
 // Either input can be left out. Lines are sorted, so the same inputs give the same files.
-import { createReadStream, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { createGunzip, gzipSync } from 'node:zlib';
 import { join } from 'node:path';
@@ -47,9 +49,26 @@ function scanForm(raw) {
   return code;
 }
 
-/** bare code → the line for it: code, name, brand, quantity, image, source */
+// ---- nutrition, shared with src/data/nutrition.ts ----
+const AMOUNTS = ['kcal', 'fat', 'saturatedFat', 'transFat', 'cholesterolMg', 'carbs', 'fiber', 'sugars', 'protein', 'sodiumMg'];
+const MAX = { kcal: 900, fat: 100, saturatedFat: 100, transFat: 100, cholesterolMg: 3000, carbs: 100, fiber: 100, sugars: 100, protein: 100, sodiumMg: 40000 };
+const num = (v) => (v === '' || v === undefined || v === null ? undefined : Number(v));
+/** The nutrition field for a line, or '' when too little is known. */
+function nutritionField(raw, per, servingSize, serving) {
+  const values = AMOUNTS.map((k) => {
+    const v = num(raw[k]);
+    if (v === undefined || !Number.isFinite(v) || v < 0 || v > MAX[k]) return '';
+    return String(k === 'kcal' || k.endsWith('Mg') ? Math.round(v) : Math.round(v * 10) / 10);
+  });
+  if (values[0] === '' && values.filter(Boolean).length < 3) return '';
+  const size = num(servingSize);
+  return [per, values.join(','), size && Number.isFinite(size) && size > 0 && size < 5000 ? Math.round(size * 10) / 10 : '', clean(serving).replace(/;/g, ',')].join(';').replace(/;+$/, '');
+}
+const isLiquid = (quantity) => /\d\s*(ml|cl|dl|l|fl\.? ?oz)\b/i.test(quantity ?? '');
+
+/** bare code → the line for it: code, name, brand, quantity, image, source, nutrition */
 const rows = new Map();
-const counts = { o: 0, p: 0, b: 0, f: 0, u: 0 };
+const counts = { o: 0, p: 0, b: 0, f: 0, u: 0, nutrition: 0 };
 let usdaTotal = 0;
 /** GS1 unit codes in USDA package sizes, as written on a pack. */
 const UNITS = { LBR: 'lb', ONZ: 'oz', OZA: 'fl oz', GRM: 'g', KGM: 'kg', MLT: 'ml', LTR: 'L', GLL: 'gal', CT: 'ct', EA: 'ct' };
@@ -79,8 +98,15 @@ async function readFacts(source, path) {
     const key = own(bare(code));
     // Earlier databases win; within one, the first row for a code does.
     if (rows.has(key)) continue;
+    const mg = (c) => (num(f[col[c]]) === undefined ? undefined : num(f[col[c]]) * 1000);
+    const facts = col['energy-kcal_100g'] === undefined ? '' : nutritionField({
+      kcal: f[col['energy-kcal_100g']], fat: f[col.fat_100g], saturatedFat: f[col['saturated-fat_100g']], transFat: f[col['trans-fat_100g']],
+      cholesterolMg: mg('cholesterol_100g'), carbs: f[col.carbohydrates_100g], fiber: f[col.fiber_100g], sugars: f[col.sugars_100g],
+      protein: f[col.proteins_100g], sodiumMg: mg('sodium_100g'),
+    }, isLiquid(quantity) ? 'ml' : 'g', f[col.serving_quantity], f[col.serving_size]);
     counts[source]++;
-    rows.set(key, own([code, name, brand, quantity, image, source].join('\t')));
+    if (facts) counts.nutrition++;
+    rows.set(key, own([code, name, brand, quantity, image, source, facts].join('\t')));
   }
 }
 
@@ -114,9 +140,26 @@ async function readUsda(dir) {
     const key = bare(code);
     const prev = latest.get(key);
     if (prev && prev.date > r.available_date) continue;
-    latest.set(key, { id: r.fdc_id, code, date: r.available_date, brand: titleCase(clean(r.brand_name) || clean(r.brand_owner)), size: usdaSize(clean(r.package_weight).split('/')[0].trim()) });
+    const unit = { g: 'g', grm: 'g', ml: 'ml', mlt: 'ml' }[clean(r.serving_size_unit).toLowerCase()];
+    const amount = num(r.serving_size);
+    const household = clean(r.household_serving_fulltext);
+    const printed = unit && amount ? `${Math.round(amount * 10) / 10} ${unit}` : '';
+    latest.set(key, {
+      id: r.fdc_id, code, date: r.available_date, brand: titleCase(clean(r.brand_name) || clean(r.brand_owner)), size: usdaSize(clean(r.package_weight).split('/')[0].trim()),
+      per: unit === 'ml' ? 'ml' : 'g', servingSize: unit ? amount : undefined,
+      serving: household && printed && !/^amount per serving$/i.test(household) ? `${household.toLowerCase()} (${printed})` : printed,
+    });
   }
   const byId = new Map([...latest.values()].map((v) => [v.id, v]));
+  // USDA's amounts for branded foods are per 100 g (or 100 ml).
+  const NUTRIENTS = { 1008: 'kcal', 1004: 'fat', 1258: 'saturatedFat', 1257: 'transFat', 1253: 'cholesterolMg', 1005: 'carbs', 1079: 'fiber', 2000: 'sugars', 1003: 'protein', 1093: 'sodiumMg' };
+  if (existsSync(join(dir, 'food_nutrient.csv'))) {
+    for await (const r of csv(join(dir, 'food_nutrient.csv'))) {
+      const k = NUTRIENTS[r.nutrient_id];
+      const v = k && byId.get(r.fdc_id);
+      if (v) (v.amounts ??= {})[k] = r.amount;
+    }
+  }
   for await (const r of csv(join(dir, 'food.csv'))) {
     const v = byId.get(r.fdc_id);
     if (!v) continue;
@@ -124,10 +167,18 @@ async function readUsda(dir) {
     if (!name) continue;
     usdaTotal++;
     const key = bare(v.code);
-    // The open databases usually have a photo and a better name, so they win when both know the product.
-    if (rows.has(key)) continue;
+    const facts = v.amounts ? nutritionField(v.amounts, v.per, v.servingSize, v.serving) : '';
+    const known = rows.get(key);
+    // The open databases usually have a photo and a better name, so they win when both know the product;
+    // USDA only fills in nutrition they lack.
+    if (known) {
+      const fields = known.split('\t');
+      if (!fields[6] && facts) { fields[6] = facts; rows.set(key, own(fields.join('\t'))); counts.nutrition++; }
+      continue;
+    }
     counts.u++;
-    rows.set(key, own([v.code, name, v.brand, v.size, '', 'u'].join('\t')));
+    if (facts) counts.nutrition++;
+    rows.set(key, own([v.code, name, v.brand, v.size, '', 'u', facts].join('\t')));
   }
 }
 
@@ -156,5 +207,5 @@ for (const [s, lines] of shards) {
   bytes += body.length;
   writeFileSync(join(out, `${s}.gz`), body);
 }
-writeFileSync(join(out, 'meta.json'), JSON.stringify({ builtAt: new Date().toISOString(), products: rows.size, bySource: counts }));
+writeFileSync(join(out, 'meta.json'), JSON.stringify({ builtAt: new Date().toISOString(), products: rows.size, withNutrition: counts.nutrition, bySource: { o: counts.o, p: counts.p, b: counts.b, f: counts.f, u: counts.u } }));
 console.log(`${rows.size} products in ${shards.size} shards, ${(bytes / 1e6).toFixed(1)} MB (${Math.round((Date.now() - started) / 1000)}s)`);

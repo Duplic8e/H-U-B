@@ -47,6 +47,11 @@ async function video(name, modules) {
 const nutellaVideo = await video('ean13', ean13(BARCODE));
 const UPCE = '04252614'; // UPC-A 042100005264
 const upceVideo = await video('upce', upce(UPCE));
+await video('blank', '0');
+// Unpacking groceries: a jar of Nutella, taken away, a second jar, taken away, then toothpicks. Loops.
+writeFileSync(join(dir, 'groceries.txt'), ['ean13', 'blank', 'ean13', 'blank', 'upce', 'blank', 'blank'].map((n, i, all) => `file '${join(dir, `${n}.png`)}'${i < all.length - 1 ? `\nduration ${n === 'blank' ? 1.8 : 1}` : ''}`).join('\n'));
+execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', join(dir, 'groceries.txt'), '-r', '10', '-pix_fmt', 'yuv420p', join(dir, 'groceries.y4m')]);
+const groceriesVideo = join(dir, 'groceries.y4m');
 
 // ---- a small built-in copy, made by the real build script ----
 const pantryDir = new URL('../../apps/pantry/', import.meta.url).pathname;
@@ -70,7 +75,7 @@ async function openFoodFacts(route) {
   if (host !== 'world.openfoodfacts.org') return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ status: 0 }) });
   const code = new URL(route.request().url()).pathname.match(/product\/(\d+)\.json/)?.[1];
   if (code !== BARCODE) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code, status: 0, status_verbose: 'product not found' }) });
-  return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code, status: 1, product: { product_name: 'Nutella', brands: 'Ferrero', quantity: '400 g' } }) });
+  return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code, status: 1, product: { product_name: 'Nutella', brands: 'Ferrero', quantity: '400 g', serving_size: '15 g', serving_quantity: 15, nutriments: { 'energy-kcal_100g': 539, fat_100g: 30.9, 'saturated-fat_100g': 10.6, carbohydrates_100g: 57.5, sugars_100g: 56.3, proteins_100g: 6.3, sodium_100g: 0.0428 } } }) });
 }
 async function github(route) {
   const req = route.request();
@@ -129,6 +134,11 @@ await sheet.waitFor({ timeout: 15000 });
 assert.equal(await sheet.getByLabel('Name').inputValue(), 'Nutella, 400 g');
 assert.equal(await sheet.getByLabel('Brand (optional)').inputValue(), 'Ferrero');
 await sheet.getByText(`Barcode ${BARCODE}`).waitFor();
+// Nutrition facts, per serving and per 100 g.
+const facts = sheet.getByRole('region', { name: 'Nutrition facts' });
+await facts.getByRole('columnheader', { name: 'Per 15 g' }).waitFor();
+assert.deepEqual(await facts.getByRole('row', { name: /^Calories/ }).getByRole('cell').allTextContents(), ['Calories', '81', '539']);
+assert.deepEqual(await facts.getByRole('row', { name: /^Sodium/ }).getByRole('cell').allTextContents(), ['Sodium', '6 mg', '43 mg']);
 assert.equal(await page.evaluate(() => document.querySelector('video')), null, 'the camera closes once a barcode is read');
 await sheet.getByLabel('Expiry date (optional)').fill(await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }));
 await shot(page, '3-confirm');
@@ -259,6 +269,39 @@ await small.page.waitForFunction(() => document.querySelector('[role=dialog] inp
 await small.page.goto(`${url}#/settings`);
 await small.page.getByText(/Built-in copy: 1 products/).waitFor();
 await small.context.close();
+
+// Groceries: scan everything, then add it all at once.
+await browser.close();
+browser = await camera(groceriesVideo);
+offDown = false;
+builtInCopy = true;
+const bags = await install();
+const gp = bags.page;
+await gp.getByRole('button', { name: 'Scan barcode' }).click();
+await gp.getByRole('radio', { name: 'Groceries' }).click();
+await gp.getByRole('dialog', { name: 'Scan groceries' }).waitFor();
+// Two jars of Nutella and a box of toothpicks, each counted once however long it is in view.
+await gp.getByRole('button', { name: 'Review 3 items' }).waitFor({ timeout: 30000 });
+await shot(gp, '8-groceries-scanning');
+await gp.getByRole('button', { name: 'Review 3 items' }).click();
+await gp.waitForURL(/#\/groceries$/);
+await gp.getByText('2 products').waitFor({ timeout: 15000 });
+assert.deepEqual(await gp.locator('.list .row-title').allTextContents(), ['Nutella, 400 g', 'Flat toothpicks, 750 pcs']);
+assert.deepEqual(await gp.locator('.list output').allTextContents(), ['2', '1']);
+// Fix one before adding: an expiry date on the Nutella.
+await gp.getByRole('button', { name: 'Edit Nutella, 400 g' }).click();
+const scanned = gp.getByRole('dialog', { name: 'Scanned item' });
+await scanned.getByRole('region', { name: 'Nutrition facts' }).waitFor();
+await scanned.getByLabel('Expiry date (optional)').fill('2027-03-01');
+await scanned.getByRole('button', { name: 'Save', exact: true }).click();
+await gp.getByText(/Expires/).waitFor();
+await shot(gp, '9-groceries-review');
+await gp.getByRole('button', { name: 'Add 3 to pantry' }).click();
+await gp.getByText('Added 3 items to the pantry').waitFor();
+await row(gp, 'Nutella').locator('output', { hasText: '2' }).waitFor();
+await row(gp, 'Flat toothpicks').waitFor();
+assert.equal(await gp.locator('.banner').count(), 0);
+await bags.context.close();
 
 await browser.close();
 assert.deepEqual(errors, []);

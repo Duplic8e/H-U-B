@@ -1,3 +1,5 @@
+import type { Nutrition } from './nutrition';
+
 /** Every synced row carries these, so two devices merge by id with the newest edit winning. */
 export interface Synced {
   id: string;
@@ -17,6 +19,25 @@ export interface Item extends Synced {
   quantity: number;
   /** Local calendar date, YYYY-MM-DD. One date per product: the earliest pack. */
   expiresOn?: string;
+  /** From the product databases, when they have it. */
+  nutrition?: Nutrition;
+}
+
+/** A product scanned in groceries mode, waiting to be added. */
+export interface Scan {
+  barcode: string;
+  /** How many packs were scanned. */
+  count: number;
+  scannedAt: string;
+  /** Unset while it is being looked up. `known`: Pantry already had the product. */
+  lookup?: 'found' | 'known' | 'not_found' | 'incomplete' | 'offline';
+  name: string;
+  brand?: string;
+  imageUrl?: string;
+  nutrition?: Nutrition;
+  expiresOn?: string;
+  /** Set once the name was typed or changed, so a late lookup does not overwrite it. */
+  edited?: boolean;
 }
 
 /** Everything that syncs, as one document. */
