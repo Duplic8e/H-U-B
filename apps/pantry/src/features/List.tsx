@@ -15,7 +15,7 @@ export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () 
 
   const change = async (item: Item, next: number) => {
     const left = await repo.adjust(item.id, next - item.quantity);
-    if (left === 0) toast({ message: `Used up ${item.name}`, action: { label: 'Undo', run: () => void repo.restore(item.id) } });
+    if (left === 0) toast({ message: `Used up ${item.name || 'item'}`, action: { label: 'Undo', run: () => void repo.restore(item.id) } });
   };
 
   const total = (items ?? []).reduce((n, i) => n + i.quantity, 0);
@@ -49,18 +49,22 @@ export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () 
             <ul class="list">
               {shown.map((item) => {
                 const state = expiryState(item.expiresOn, day);
+                const title = item.name || (item.lookup === 'pending' ? 'Looking up…' : `Barcode ${item.barcode ?? ''}`);
+                const waiting = !item.name && item.lookup === 'pending';
                 return (
                   <li key={item.id} class="row item">
-                    <button type="button" class="item-open" onClick={() => onOpen(item)} aria-label={`Edit ${item.name}`}>
-                      <Thumb name={item.name} src={item.imageUrl} />
+                    <button type="button" class="item-open" onClick={() => onOpen(item)} aria-label={`Edit ${title}`}>
+                      <Thumb name={item.name || '?'} src={item.imageUrl} />
                       <span class="row-main">
-                        <span class="row-title wrap">{item.name}</span>
-                        {item.expiresOn
-                          ? <span class={`row-sub ${state === 'ok' ? '' : state}`}>{expiryLabel(item.expiresOn, day)}</span>
-                          : item.brand && <span class="row-sub">{item.brand}</span>}
+                        <span class={`row-title wrap${item.name ? '' : ' muted'}`}>{title}</span>
+                        {!item.name
+                          ? <span class={`row-sub${waiting ? '' : ' soon'}`}>{waiting ? `Barcode ${item.barcode ?? ''}` : 'Not in the databases. Tap to name it.'}</span>
+                          : item.expiresOn
+                            ? <span class={`row-sub ${state === 'ok' ? '' : state}`}>{expiryLabel(item.expiresOn, day)}</span>
+                            : item.brand && <span class="row-sub">{item.brand}</span>}
                       </span>
                     </button>
-                    <Stepper label={`Quantity of ${item.name}`} value={item.quantity} onChange={(next) => void change(item, next)} />
+                    <Stepper label={`Quantity of ${title}`} value={item.quantity} onChange={(next) => void change(item, next)} />
                   </li>
                 );
               })}

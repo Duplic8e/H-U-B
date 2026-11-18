@@ -10,7 +10,7 @@ function status(scan: Scan, inPantry: Item | undefined, day: string): { text: st
   if (scan.lookup === undefined) return { text: 'Looking up…' };
   if (!scan.name.trim()) {
     if (scan.lookup === 'not_found') return { text: 'Not in the databases. Tap to name it.', tone: 'soon' };
-    return { text: 'Could not look it up. Tap to name it, or try again.', tone: 'soon' };
+    return { text: 'Could not reach the databases yet. Pantry keeps trying.', tone: 'soon' };
   }
   const parts = [];
   if (inPantry) parts.push(`In pantry: ${inPantry.quantity} → ${inPantry.quantity + scan.count}`);
@@ -32,13 +32,12 @@ export function Groceries({ onScanMore }: { onScanMore: () => void }) {
   const pending = scans.filter((s) => s.lookup === undefined).length;
   const unnamed = scans.filter((s) => s.lookup !== undefined && !s.name.trim());
   const retryable = scans.filter((s) => (s.lookup === 'incomplete' || s.lookup === 'offline') && !s.name.trim());
-  const ready = scans.filter((s) => s.name.trim());
-  const packs = ready.reduce((n, s) => n + s.count, 0);
+  const packs = scans.reduce((n, s) => n + s.count, 0);
 
   const addAll = async () => {
-    const { added, left } = await repo.addScansToPantry();
-    toast({ message: left ? `Added ${added} to the pantry. ${left} still need a name.` : `Added ${added} ${added === 1 ? 'item' : 'items'} to the pantry` });
-    if (!left) location.hash = '#/';
+    const { added } = await repo.addScansToPantry();
+    toast({ message: pending ? `Added ${added}. The rest fill in in the background.` : `Added ${added} ${added === 1 ? 'item' : 'items'} to the pantry` });
+    location.hash = '#/';
   };
   const clearAll = async () => {
     if (!confirm(`Remove all ${scans.length} scanned items from this list? Nothing is added to the pantry.`)) return;
@@ -88,7 +87,7 @@ export function Groceries({ onScanMore }: { onScanMore: () => void }) {
       </div>
       <div class="actions">
         <div class="actions-inner">
-          {scans.length > 0 && <button type="button" class="btn primary" disabled={!packs} onClick={() => void addAll()}>{packs ? `Add ${packs} to pantry` : 'Name items to add them'}</button>}
+          {scans.length > 0 && <button type="button" class="btn primary" disabled={!packs} onClick={() => void addAll()}>{`Add ${packs} to pantry`}</button>}
           <button type="button" class={`btn ${scans.length ? 'add' : 'primary'}`} onClick={onScanMore}><Icon name="scan" />{scans.length ? 'More' : 'Scan groceries'}</button>
         </div>
       </div>

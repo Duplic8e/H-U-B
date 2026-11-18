@@ -1,6 +1,6 @@
-import { lookupBarcode, type LookupResult } from './lookup';
+import { lookupOnce, type LookupResult } from './lookup';
 import type { Repo } from './repo';
-import type { Scan } from './types';
+import type { Item, Scan } from './types';
 
 /** Looks scanned groceries up in the background, a few at a time, as they are scanned. Products
  *  Pantry already knows only get their nutrition filled in, once. */
@@ -11,7 +11,7 @@ export class GroceryLookups {
 
   constructor(
     private readonly repo: Repo,
-    private readonly lookup: (barcode: string) => Promise<LookupResult> = (b) => lookupBarcode(b),
+    private readonly lookup: (barcode: string) => Promise<LookupResult> = (b) => lookupOnce(b),
     private readonly limit = 3,
   ) {}
 
@@ -51,5 +51,49 @@ export class GroceryLookups {
       lookup: 'found', imageUrl: now.imageUrl ?? p.imageUrl, nutrition: now.nutrition ?? p.nutrition,
       ...(now.edited ? {} : { name: p.name, brand: p.brand }),
     });
+  }
+}
+
+/** Finishes lookups for pantry items saved before theirs came back, a couple at a time. One that
+ *  could not reach the databases is tried again on `retry` (the app calls it when the connection
+ *  returns or the app is reopened). */
+export class ItemLookups {
+  private running = new Set<string>();
+  private tried = new Set<string>();
+  private latest: Item[] = [];
+
+  constructor(
+    private readonly repo: Repo,
+    private readonly lookup: (barcode: string) => Promise<LookupResult> = (b) => lookupOnce(b),
+    private readonly limit = 2,
+  ) {}
+
+  update(items: Item[]) {
+    this.latest = items;
+    this.pump();
+  }
+
+  retry() {
+    this.tried.clear();
+    this.pump();
+  }
+
+  async idle() {
+    while (this.running.size) await new Promise((r) => setTimeout(r, 5));
+  }
+
+  private pump() {
+    for (const item of this.latest) {
+      if (this.running.size >= this.limit) return;
+      if (item.lookup !== 'pending' || !item.barcode || this.running.has(item.id) || this.tried.has(item.id)) continue;
+      this.running.add(item.id);
+      this.tried.add(item.id);
+      const barcode = item.barcode;
+      void (async () => {
+        let result: LookupResult;
+        try { result = await this.lookup(barcode); } catch { result = { status: 'offline' }; }
+        await this.repo.applyLookup(item.id, result);
+      })().finally(() => { this.running.delete(item.id); this.pump(); });
+    }
   }
 }
