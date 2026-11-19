@@ -23,6 +23,7 @@ export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () 
     <>
       <Header title="Pantry" actions={<>
         {HUB_URL && <a class="icon-btn" href={HUB_URL} aria-label="Hub"><Icon name="hub" /></a>}
+        <a class="icon-btn" href="#/recipes" aria-label="Recipes"><Icon name="book" /></a>
         <button type="button" class="icon-btn" aria-label="Add an item by hand" onClick={onAdd}><Icon name="plus" /></button>
         <a class="icon-btn" href="#/settings" aria-label="Settings"><Icon name="gear" /></a>
       </>} />

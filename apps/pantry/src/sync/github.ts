@@ -33,7 +33,8 @@ export function parsePayload(raw: unknown): Payload {
   const p = raw as Partial<Payload> | null;
   if (!p || p.app !== 'pantry' || !Array.isArray(p.items)) throw new SyncError('other', 'The cloud data is damaged or not Pantry data.');
   if ((p.version ?? 1) > 1) throw new SyncError('other', 'The cloud data was written by a newer Pantry. Refresh the app.');
-  return p as Payload;
+  if (p.recipes !== undefined && !Array.isArray(p.recipes)) throw new SyncError('other', 'The cloud data is damaged or not Pantry data.');
+  return { ...p, recipes: p.recipes ?? [] } as Payload;
 }
 
 /** GitHub contents API. The token only ever goes in the Authorization header. */

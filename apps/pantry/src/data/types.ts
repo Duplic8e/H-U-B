@@ -43,7 +43,30 @@ export interface Scan {
   edited?: boolean;
 }
 
-/** Everything that syncs, as one document. */
+/** One line of a recipe. */
+export interface RecipeIngredient {
+  name: string;
+  /** As written, e.g. "2 tbsp" or "1 can". */
+  amount: string;
+  /** The pantry item it uses, when it comes from the pantry. */
+  itemId?: string;
+}
+
+/** A recipe in the recipe book: suggested by Gemini and saved, or typed in. */
+export interface Recipe extends Synced {
+  title: string;
+  summary?: string;
+  minutes?: number;
+  servings?: number;
+  /** Gemini's estimate; absent for typed recipes. */
+  kcalPerServing?: number;
+  ingredients: RecipeIngredient[];
+  steps: string[];
+  source: 'gemini' | 'mine';
+}
+
+/** Everything that syncs, as one document. The Gemini key is not in it: it never leaves the phone. */
 export interface Dump {
   items: Item[];
+  recipes: Recipe[];
 }

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'preact/hooks';
 
-export type Route = 'list' | 'settings' | 'groceries';
+export type Route = 'list' | 'settings' | 'groceries' | 'recipes';
 
 export function parseHash(hash: string): Route {
   const name = hash.replace(/^#\/?/, '').split(/[/?]/)[0];
-  return name === 'settings' || name === 'groceries' ? name : 'list';
+  return name === 'settings' || name === 'groceries' || name === 'recipes' ? name : 'list';
 }
 
 export function useRoute(): Route {

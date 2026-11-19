@@ -76,6 +76,27 @@ describe('Pantry sync through the Hub connection', () => {
     }
   });
 
+  it('backs up the recipe book, never the Gemini key, and reads backups from before recipes', async () => {
+    const gh = new FakeGitHub();
+    localStorage.setItem('pantry-gemini-key', 'AIzaSECRET_should_never_upload');
+    const phone = device(gh);
+    await phone.repo.saveRecipe({ title: 'Pasta', source: 'mine', ingredients: [{ name: 'spaghetti', amount: '200 g' }], steps: ['Boil.'] });
+    await phone.sync.syncNow();
+    expect(gh.file!.text).toContain('"recipes"');
+    expect(gh.file!.text).not.toContain('AIzaSECRET');
+    const fresh = device(gh);
+    await fresh.sync.syncNow();
+    expect((await fresh.repo.listRecipes()).map((r) => r.title)).toEqual(['Pasta']);
+    localStorage.removeItem('pantry-gemini-key');
+
+    const old = new FakeGitHub();
+    old.file = { sha: 'sha0', text: JSON.stringify({ app: 'pantry', version: 1, syncedAt: '2026-01-01', items: [{ id: 'x', updatedAt: '2026-01-01', name: 'Rice', quantity: 1 }] }) };
+    const d = device(old);
+    await d.sync.syncNow();
+    expect(d.sync.getStatus().state).toBe('idle');
+    expect((await d.repo.listItems()).map((i) => i.name)).toEqual(['Rice']);
+  });
+
   it('joins the same product scanned on two phones before either synced', async () => {
     const gh = new FakeGitHub();
     const a = device(gh);

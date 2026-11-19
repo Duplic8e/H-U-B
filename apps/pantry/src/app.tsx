@@ -10,6 +10,7 @@ import { Settings } from './features/Settings';
 import { Scanner, type Batch, type ScanMode } from './ui/Scanner';
 import { unlockSound } from './ui/beep';
 import { Groceries } from './features/Groceries';
+import { Recipes } from './features/Recipes';
 import { GroceryLookups, ItemLookups } from './data/groceryLookups';
 import { useLive } from './ui/kit';
 
@@ -95,7 +96,7 @@ export function App() {
   return (
     <Ctx.Provider value={ctx}>
       <div class="app">
-        {route === 'settings' ? <Settings /> : route === 'groceries' ? <Groceries onScanMore={() => { changeMode('many'); startScan(); }} /> : <List onScan={startScan} onAdd={addByHand} onOpen={open} />}
+        {route === 'settings' ? <Settings /> : route === 'recipes' ? <Recipes /> : route === 'groceries' ? <Groceries onScanMore={() => { changeMode('many'); startScan(); }} /> : <List onScan={startScan} onAdd={addByHand} onOpen={open} />}
         {scanning && <Scanner mode={scanMode} onMode={changeMode} onCode={(code) => void onCode(code)} onBatchCode={onBatchCode} batch={batch} onReview={review} onClose={closeScanner} onManual={addByHand} />}
         {draft && <ItemSheet key={`${draft.mode}:${draft.existing?.id ?? draft.barcode ?? ''}`} draft={draft} onClose={closeDraft} />}
         {message && (

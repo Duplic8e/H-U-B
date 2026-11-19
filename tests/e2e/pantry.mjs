@@ -95,6 +95,25 @@ async function github(route) {
   return json(404, {});
 }
 
+// ---- simulated Gemini ----
+const GEMINI_KEY = 'AIzaFAKE_e2e_key_7777';
+const geminiCalls = [];
+async function gemini(route) {
+  const req = route.request();
+  const url = new URL(req.url());
+  geminiCalls.push({ path: url.pathname, key: req.headers()['x-goog-api-key'], search: url.search, body: req.postData() });
+  const cors = { 'access-control-allow-origin': '*' };
+  if (req.headers()['x-goog-api-key'] !== GEMINI_KEY) return route.fulfill({ status: 400, headers: cors, contentType: 'application/json', body: JSON.stringify({ error: { message: 'API key not valid. Please pass a valid API key.' } }) });
+  if (url.pathname.endsWith('/models')) return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ models: [] }) });
+  const prompt = JSON.parse(req.postData()).contents[0].parts[0].text;
+  const n = (name) => Number(prompt.match(new RegExp(`(\\d+)\\. ${name}`))?.[1] ?? 0);
+  const recipes = [
+    { title: 'Nutella toast', summary: 'A sweet snack.', minutes: 5, servings: 1, kcalPerServing: 320, ingredients: [{ name: 'Nutella', amount: '2 tbsp', pantry: n('Nutella') }, { name: 'bread', amount: '2 slices', pantry: 0 }], steps: ['Toast the bread.', 'Spread the Nutella.'] },
+    { title: 'Toothpick fruit skewers', summary: 'Party bites.', minutes: 10, servings: 4, kcalPerServing: 90, ingredients: [{ name: 'toothpicks', amount: '12', pantry: n('Flat toothpicks') }, { name: 'grapes', amount: '1 cup', pantry: 0 }], steps: ['Thread the fruit.'] },
+  ];
+  return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ recipes }) }] } }] }) });
+}
+
 const IPHONE = `html:root { --safe-top: 59px; --safe-bottom: 34px; }`;
 const camera = (file) => chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${file}`] });
 let browser = await camera(nutellaVideo);
@@ -110,6 +129,7 @@ async function install() {
   await context.route(/^https:\/\/(world\.open\w+facts\.org|api\.nal\.usda\.gov)\//, openFoodFacts);
   await context.route('https://api.github.com/**', github);
   await context.route('**/barcodes/**', serveCopy);
+  await context.route('https://generativelanguage.googleapis.com/**', gemini);
   await context.addInitScript((token) => localStorage.setItem('hub-cloud', JSON.stringify({ owner: 'me', repo: 'data', token })), TOKEN);
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -310,6 +330,50 @@ await gp.getByText('Added 3 items to the pantry').waitFor();
 await row(gp, 'Nutella').locator('output', { hasText: '2' }).waitFor();
 await row(gp, 'Flat toothpicks').waitFor();
 assert.equal(await gp.locator('.banner').count(), 0);
+
+// Recipes from the pantry with Gemini; the key stays on the phone.
+await gp.getByRole('link', { name: 'Recipes' }).click();
+await gp.getByRole('link', { name: 'Set up Gemini' }).click();
+await gp.getByLabel('Gemini API key').fill('wrong-key');
+await gp.getByRole('button', { name: 'Save' }).click();
+await gp.getByRole('alert').getByText('Gemini did not accept the key').waitFor();
+await gp.getByLabel('Gemini API key').fill(GEMINI_KEY);
+await gp.getByRole('button', { name: 'Save' }).click();
+await gp.getByText('Key saved on this phone (ends in …7777)').waitFor();
+await gp.goto(`${url}#/recipes`);
+await gp.getByRole('button', { name: 'Quick' }).click();
+await gp.getByRole('button', { name: 'Suggest 3 recipes' }).click();
+const ideas = gp.getByRole('list', { name: 'Suggestions' });
+await ideas.getByText('Nutella toast').waitFor({ timeout: 15000 });
+await ideas.getByText('Missing 1: bread').waitFor();
+await shot(gp, '10-recipes');
+const asked = geminiCalls.find((c) => c.path.endsWith(':generateContent'));
+assert.equal(asked.key, GEMINI_KEY);
+assert.ok(!asked.search.includes(GEMINI_KEY) && !asked.path.includes(GEMINI_KEY), 'the key is never in the address');
+assert.match(JSON.parse(asked.body).contents[0].parts[0].text, /Nutella, 400 g \(Ferrero\) x2/);
+await ideas.getByRole('button', { name: /Nutella toast/ }).click();
+const toast = gp.getByRole('dialog', { name: 'Nutella toast' });
+await toast.getByRole('img', { name: 'In the pantry' }).or(toast.getByLabel('In the pantry')).first().waitFor();
+await toast.getByLabel('Not in the pantry').waitFor();
+await shot(gp, '11-recipe');
+await toast.getByRole('button', { name: 'Save to recipe book' }).click();
+await toast.getByRole('button', { name: 'I cooked this' }).click();
+await toast.getByRole('checkbox', { name: /Nutella/ }).check();
+await toast.getByRole('button', { name: 'Done' }).click();
+await gp.getByText(/Enjoy! 1 used up item/).waitFor();
+await gp.getByRole('list', { name: 'Recipe book' }).getByText('Nutella toast').waitFor();
+await gp.goto(`${url}#/`);
+await row(gp, 'Nutella').locator('output', { hasText: '1' }).waitFor();
+
+// Backed up with the recipe book, never with the key.
+await gp.goto(`${url}#/settings`);
+await gp.getByRole('button', { name: 'Sync now' }).click();
+await gp.getByText(/Backed up/).waitFor();
+assert.match(cloud.text, /"title":"Nutella toast"/);
+assert.ok(!cloud.text.includes(GEMINI_KEY), 'the Gemini key is not in the backup');
+assert.equal(await gp.evaluate(() => localStorage.getItem('pantry-gemini-key')), GEMINI_KEY);
+await gp.getByRole('button', { name: 'Remove key' }).click();
+assert.equal(await gp.evaluate(() => localStorage.getItem('pantry-gemini-key')), null);
 await bags.context.close();
 
 await browser.close();

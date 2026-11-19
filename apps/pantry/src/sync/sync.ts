@@ -24,7 +24,8 @@ export interface SyncStatus {
 
 /** Sorted, sync-time-free text for comparing two dumps. */
 function canonical(d: Dump): string {
-  return JSON.stringify([...d.items].sort((a, b) => a.id.localeCompare(b.id)));
+  const byId = <T extends { id: string }>(rows: T[]) => [...rows].sort((a, b) => a.id.localeCompare(b.id));
+  return JSON.stringify([byId(d.items), byId(d.recipes ?? [])]);
 }
 
 const KEY_LAST = 'sync.lastSyncedAt';
