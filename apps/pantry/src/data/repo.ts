@@ -2,7 +2,7 @@ import { barcodeId } from './barcode';
 import { PantryDB } from './db';
 import type { LookupResult } from './lookup';
 import type { Nutrition } from './nutrition';
-import type { Dump, Item, Scan } from './types';
+import type { Dump, Item, Recipe, Scan } from './types';
 
 const uid = () => crypto.randomUUID();
 const clean = (s?: string) => s?.trim() || undefined;
@@ -163,18 +163,55 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
       return { added: scans.reduce((n, s) => n + s.count, 0) };
     },
 
+    // ---- recipes ----
+    async listRecipes(): Promise<Recipe[]> {
+      return (await db.recipes.toArray()).filter((r) => !r.deletedAt).sort((a, b) => a.title.localeCompare(b.title));
+    },
+    async getRecipe(id: string): Promise<Recipe | undefined> {
+      const r = await db.recipes.get(id);
+      return r && !r.deletedAt ? r : undefined;
+    },
+    async saveRecipe(input: Omit<Recipe, 'id' | 'updatedAt'> & { id?: string }): Promise<string> {
+      const id = input.id ?? uid();
+      await db.recipes.put({
+        ...input, id, updatedAt: stamp(), title: input.title.trim(),
+        ingredients: input.ingredients.filter((i) => i.name.trim()).map((i) => ({ name: i.name.trim(), amount: i.amount.trim(), ...(i.itemId ? { itemId: i.itemId } : {}) })),
+        steps: input.steps.map((s) => s.trim()).filter(Boolean),
+      });
+      changed();
+      return id;
+    },
+    async removeRecipe(id: string) {
+      const r = await db.recipes.get(id);
+      if (!r || r.deletedAt) return;
+      await db.recipes.put({ ...r, deletedAt: stamp(), updatedAt: stamp() });
+      changed();
+    },
+    async restoreRecipe(id: string) {
+      const r = await db.recipes.get(id);
+      if (!r?.deletedAt) return;
+      const { deletedAt: _gone, ...rest } = r;
+      await db.recipes.put({ ...rest, updatedAt: stamp() });
+      changed();
+    },
+
     // ---- sync and backup ----
     async dumpAll(): Promise<Dump> {
-      return { items: await db.items.toArray() };
+      return { items: await db.items.toArray(), recipes: await db.recipes.toArray() };
     },
     /** Merges rows by id; the newer `updatedAt` wins, ties keep this device's row. */
-    async mergeAll(remote: Dump) {
+    async mergeAll(remote: { items: Item[]; recipes?: Recipe[] }) {
       quiet = true;
       try {
-        await db.transaction('rw', db.items, async () => {
-          const local = new Map((await db.items.bulkGet(remote.items.map((r) => r.id))).filter((r): r is Item => !!r).map((r) => [r.id, r]));
-          const winners = remote.items.filter((r) => { const mine = local.get(r.id); return !mine || r.updatedAt > mine.updatedAt; });
-          if (winners.length) await db.items.bulkPut(winners);
+        await db.transaction('rw', db.items, db.recipes, async () => {
+          const merge = async <T extends { id: string; updatedAt: string }>(table: import('dexie').Table<T, string>, rows: T[]) => {
+            const local = new Map((await table.bulkGet(rows.map((r) => r.id))).filter((r): r is T => !!r).map((r) => [r.id, r]));
+            const winners = rows.filter((r) => { const mine = local.get(r.id); return !mine || r.updatedAt > mine.updatedAt; });
+            if (winners.length) await table.bulkPut(winners);
+          };
+          await merge(db.items, remote.items);
+          // Backups written before recipes existed have none.
+          await merge(db.recipes, remote.recipes ?? []);
         });
       } finally {
         quiet = false;

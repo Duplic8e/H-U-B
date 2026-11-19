@@ -22,6 +22,11 @@ What food is at home, for the Hub. Served at `/H-U-B/pantry/`.
   item shows "Looking up…" until the lookup finishes in the background. One that could not reach the
   databases is retried automatically when the connection comes back or the app is reopened. Each
   product is looked up once per visit, however many places ask.
+- **Recipes** (book icon): Gemini suggests 3 recipes from what is in the pantry, optionally quick, high
+  protein, using what expires first, or only what you have, plus anything you type. Each ingredient is
+  marked in the pantry, missing, or a kitchen basic. Save the ones you like to the recipe book (backed up
+  with the pantry), or type in your own; the book lists what you can make now first. "I cooked this"
+  takes the packs you finished out of the pantry.
 - **Quantity**: scanning a product you already have adds one. Minus uses one up; the last one removes
   the item, with Undo.
 - **Expiry date**, optional, one per product. Dated items list soonest first; expired items and those
@@ -50,6 +55,23 @@ written out in full, so every reading of a product is one key.
 The camera needs HTTPS (or localhost) and the user's permission.
 
 `../../tests/e2e/pantry.mjs` drives the built app in Chromium with a fake camera showing a generated barcode.
+
+## Gemini
+
+Recipe ideas come from Google's Gemini API on its free tier, called straight from the phone (Google allows
+calls from the Hub's address). Get a key at aistudio.google.com and paste it in Settings; it is checked
+by listing models, which spends no quota.
+
+- **The key never leaves the phone except to Google.** It is kept in this browser's local storage under
+  `pantry-gemini-key`, outside the database, so it is not in the cloud backup, the exported file or the
+  repo, and it is sent only to `generativelanguage.googleapis.com`, in the `x-goog-api-key` header
+  (never in a URL). Settings → Remove key deletes it. Note that every Hub helper is served from the same
+  site, so all of them can read that storage; only Pantry uses it.
+- **What is sent:** the pantry's product names, brands, counts and expiry dates, numbered, plus your
+  preferences. No barcodes, ids or other data. Google may use free-tier requests to improve its products.
+- **Model:** `gemini-flash-latest`. If Google retires that name, Pantry lists the models the key can use,
+  switches to the newest `gemini-X-flash`, and remembers it.
+- Answers come back as JSON against a schema (`responseJsonSchema`) and are checked before they are shown.
 
 ## The built-in copy
 
