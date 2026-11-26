@@ -1,5 +1,6 @@
 import { registerSW } from 'virtual:pwa-register';
 import { APPS } from './apps';
+import { syncAll, syncInFrame } from './syncAll';
 import { DEFAULT_OWNER, DEFAULT_REPO, clearCloud, lastBackup, readCloud, saveCloud, testCloud, timeAgo, type CloudConfig } from './cloud';
 import './style.css';
 
@@ -12,6 +13,7 @@ const svg = (inner: string, size = 24) =>
 
 const ICON_GEAR = '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>';
 const ICON_BACK = '<path d="m15 18-6-6 6-6"/>';
+const ICON_SYNC = '<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/>';
 const ICON_CLOUD = '<path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 12 3.5 3.5 0 0 0 6 19z"/>';
 
 // ---- home ----
@@ -62,6 +64,7 @@ function renderHome(): void {
           ? statusCard('busy', 'Checking your backups…', `${cloud.owner}/${cloud.repo}`)
           : statusCard('pending', 'Cloud backup is off', 'Your data only lives on this phone. Tap to connect.')
       }
+      ${cloud ? `<button type="button" class="sync-all" id="sync-all">${svg(ICON_SYNC, 18)}<span>Sync all apps</span></button>` : ''}
       <h2 class="section-label">Helpers</h2>
       <ul class="apps" role="list">
         ${APPS.map(
@@ -82,7 +85,43 @@ function renderHome(): void {
           : 'Connect a private GitHub repo in Settings so deleting the app never deletes your data.'
       }</p>
     </main>`;
-  if (cloud) void fillStatuses(cloud);
+  if (cloud) {
+    void fillStatuses(cloud);
+    root.querySelector('#sync-all')?.addEventListener('click', () => void runSyncAll());
+  }
+}
+
+let syncingAll = false;
+
+/** Syncs every helper from here, so none has to be opened one by one. */
+async function runSyncAll(): Promise<void> {
+  if (syncingAll) return;
+  syncingAll = true;
+  const button = root.querySelector<HTMLButtonElement>('#sync-all');
+  const label = button?.querySelector('span');
+  if (button) button.disabled = true;
+  const results = await syncAll(APPS, (app) => syncInFrame(app, base), (app, state) => {
+    const el = root.querySelector<HTMLElement>(`[data-status="${app.id}"]`);
+    if (state === 'syncing') {
+      if (label) label.textContent = `Syncing ${app.name}…`;
+      if (el) { el.textContent = 'Syncing…'; el.dataset.tone = 'busy'; }
+    } else if (el) {
+      el.textContent = state.ok ? 'Synced just now' : 'Needs attention';
+      el.dataset.tone = state.ok ? 'ok' : 'error';
+      el.title = state.detail;
+    }
+  });
+  syncingAll = false;
+  if (button) button.disabled = false;
+  if (label) label.textContent = 'Sync all apps';
+  const failed = APPS.filter((a) => results.get(a.id)?.ok === false);
+  const card = root.querySelector('#backup-status');
+  if (!card) return;
+  const title = failed.length === 1 ? `${failed[0]!.name} could not sync` : failed.length === APPS.length ? 'No app could sync' : `${failed.length} apps could not sync`;
+  // Usually every app fails for the same reason (a token or the network), so the first one's is shown.
+  card.outerHTML = failed.length
+    ? statusCard('error', title, `${failed.length > 1 ? `${failed.map((a) => a.name).join(', ')}. ` : ''}${results.get(failed[0]!.id)!.detail}`)
+    : statusCard('ok', 'Everything is synced', 'All apps synced just now');
 }
 
 async function fillStatuses(cloud: CloudConfig): Promise<void> {
@@ -134,7 +173,8 @@ function renderSettings(): void {
         <h2>Cloud backup</h2>
         <p class="muted">
           Every helper saves its data to one <strong>private</strong> GitHub repository you own, so deleting the app
-          from your home screen, or losing the phone, loses nothing. Each app syncs on its own when you open it.
+          from your home screen, or losing the phone, loses nothing. Each app syncs on its own when you open it, and
+          Sync all apps on the Hub's home page syncs them all at once.
         </p>
         <form id="cloud-form" novalidate>
           <label>GitHub username

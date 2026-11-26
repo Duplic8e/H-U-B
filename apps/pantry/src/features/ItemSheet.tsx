@@ -92,7 +92,7 @@ export function ItemSheet({ draft, onClose, onSave, onRemove }: {
     if (!canSave) return;
     if (onSave) { await onSave({ name: trimmed, brand, quantity, expiresOn }); onClose(); return; }
     await repo.saveItem({
-      id: draft.existing?.id, barcode: draft.barcode, name: trimmed, brand, imageUrl, quantity, expiresOn,
+      id: draft.existing?.id, barcode: draft.barcode, name: trimmed, brand, imageUrl, quantity, expiresOn, unit: draft.existing?.unit, storage: draft.existing?.storage,
       nutrition: nutrition ?? draft.existing?.nutrition, lookup: notFound ? 'not_found' : 'pending',
     });
     onClose();
@@ -135,7 +135,7 @@ export function ItemSheet({ draft, onClose, onSave, onRemove }: {
         <label class="field"><span>Brand (optional)</span>
           <input class="input" value={brand} autocomplete="off" autocapitalize="words" enterkeyhint="done" onInput={(e) => { setBrand(e.currentTarget.value); touched.current.brand = true; }} />
         </label>
-        <div class="field"><span>Quantity</span>
+        <div class="field"><span>Quantity{draft.existing?.unit ? ` (${draft.existing.unit})` : ''}</span>
           <Stepper label="Quantity" value={quantity} min={1} large onChange={setQuantity} />
         </div>
         <label class="field"><span>Expiry date (optional)</span>

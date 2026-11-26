@@ -32,6 +32,7 @@ export interface Suggestion {
   kcalPerServing?: number;
   ingredients: RecipeIngredient[];
   steps: string[];
+  appliances: string[];
 }
 
 export interface SuggestOptions {
@@ -42,9 +43,22 @@ export interface SuggestOptions {
   useExpiring?: boolean;
   /** Only what is in the pantry, plus basics like salt, oil and water. */
   onlyHave?: boolean;
+  /** The appliances in the kitchen; when set, every recipe uses only these. */
+  appliances?: string[];
 }
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
+
+/** The answer's shape. With appliances set, a recipe can only list those. */
+export function schemaFor(appliances: string[] = []) {
+  const recipe = SCHEMA.properties.recipes.items;
+  return {
+    ...SCHEMA,
+    properties: { recipes: { ...SCHEMA.properties.recipes, items: { ...recipe,
+      properties: { ...recipe.properties, appliances: { type: 'array', description: 'Every appliance the recipe uses.', items: appliances.length ? { type: 'string', enum: appliances } : { type: 'string' } } },
+      required: [...recipe.required, 'appliances'] } } },
+  };
+}
 
 const SCHEMA = {
   type: 'object',
@@ -92,7 +106,7 @@ export function describePantry(items: Item[], today: string): { text: string; by
     byNumber.set(i + 1, item);
     const left = item.expiresOn ? daysLeft(item.expiresOn, today) : undefined;
     const when = left === undefined ? '' : left < 0 ? ', past its date' : left <= 7 ? `, expires in ${left} day${left === 1 ? '' : 's'}` : '';
-    return `${i + 1}. ${item.name.slice(0, 80)}${item.brand ? ` (${item.brand.slice(0, 30)})` : ''} x${item.quantity}${when}`;
+    return `${i + 1}. ${item.name.slice(0, 80)}${item.brand ? ` (${item.brand.slice(0, 30)})` : ''} x${item.quantity}${item.unit ? ` ${item.unit}` : ''}${when}`;
   });
   return { text: lines.join('\n'), byNumber };
 }
@@ -103,6 +117,7 @@ export function buildPrompt(pantry: string, o: SuggestOptions): string {
     o.highProtein && 'High in protein.',
     o.useExpiring && 'Use up the items that expire soonest first.',
     o.onlyHave ? 'Use only pantry items, plus water, salt, pepper and cooking oil (mark those with pantry 0).' : 'Mostly pantry items; at most 3 ingredients that must be bought.',
+    o.appliances?.length && `The kitchen has only these appliances: ${o.appliances.join(', ')}. Every recipe must be made with only these, plus hand tools (knives, pots, pans, bowls, spoons). Never use any other appliance; if something is usually baked, grilled or fried in an appliance not on the list, choose a different recipe. Items marked (frozen) need thawing time.`,
     o.request?.trim() && `The cook asked for: "${o.request.trim().slice(0, 300)}"`,
   ].filter(Boolean);
   return [
@@ -116,7 +131,7 @@ export function buildPrompt(pantry: string, o: SuggestOptions): string {
   ].join('\n');
 }
 
-function checkSuggestion(raw: unknown, byNumber: Map<number, Item>): Suggestion | null {
+function checkSuggestion(raw: unknown, byNumber: Map<number, Item>, allowed: string[]): Suggestion | null {
   const r = raw as Record<string, unknown> | null;
   if (!r || typeof r.title !== 'string' || !r.title.trim() || !Array.isArray(r.ingredients) || !Array.isArray(r.steps)) return null;
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v) : undefined);
@@ -128,7 +143,11 @@ function checkSuggestion(raw: unknown, byNumber: Map<number, Item>): Suggestion 
   }
   const steps = (r.steps as unknown[]).filter((s): s is string => typeof s === 'string' && !!s.trim()).map((s) => s.trim().replace(/^\d+[.)]\s*/, ''));
   if (!ingredients.length || !steps.length) return null;
+  const appliances = Array.isArray(r.appliances) ? [...new Set((r.appliances as unknown[]).filter((a): a is string => typeof a === 'string' && !!a.trim()).map((a) => a.trim()))] : [];
+  // A recipe needing an appliance the kitchen does not have is dropped.
+  if (allowed.length && appliances.some((a) => !allowed.includes(a))) return null;
   return {
+    appliances,
     title: r.title.trim(), summary: typeof r.summary === 'string' ? r.summary.trim() : '',
     minutes: n(r.minutes) ?? 0, servings: n(r.servings) ?? 0, kcalPerServing: n(r.kcalPerServing),
     ingredients, steps,
@@ -161,7 +180,7 @@ export async function suggestRecipes(items: Item[], today: string, options: Sugg
   const { text, byNumber } = describePantry(items, today);
   const body = JSON.stringify({
     contents: [{ role: 'user', parts: [{ text: buildPrompt(text, options) }] }],
-    generationConfig: { responseMimeType: 'application/json', responseJsonSchema: SCHEMA, maxOutputTokens: 8192 },
+    generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schemaFor(options.appliances), maxOutputTokens: 8192 },
   });
   const call = async (model: string) => {
     try {
@@ -190,7 +209,7 @@ export async function suggestRecipes(items: Item[], today: string, options: Sugg
   const json = candidate?.content?.parts?.filter((p) => !p.thought).map((p) => p.text ?? '').join('') ?? '';
   let parsed: unknown;
   try { parsed = JSON.parse(json); } catch { throw new GeminiError('bad_response', 'Gemini\'s answer was cut off or unreadable. Try again.'); }
-  const recipes = ((parsed as { recipes?: unknown[] })?.recipes ?? []).map((r) => checkSuggestion(r, byNumber)).filter((r): r is Suggestion => !!r);
+  const recipes = ((parsed as { recipes?: unknown[] })?.recipes ?? []).map((r) => checkSuggestion(r, byNumber, options.appliances ?? [])).filter((r): r is Suggestion => !!r);
   if (!recipes.length) throw new GeminiError('bad_response', 'Gemini did not return any usable recipes. Try again.');
   return recipes;
 }

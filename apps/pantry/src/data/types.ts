@@ -21,6 +21,10 @@ export interface Item extends Synced {
   expiresOn?: string;
   /** From the product databases, when they have it. */
   nutrition?: Nutrition;
+  /** What the quantity counts, for things weighed or bought loose ("pieces", "lb"). Packs when absent. */
+  unit?: string;
+  /** Where fresh meat is kept, which sets its suggested expiry. */
+  storage?: 'fridge' | 'freezer';
   /** Saved before its lookup finished (`pending`, filled in in the background, retried until the
    *  databases answer), or no database knew it (`not_found`, waiting for a name). */
   lookup?: 'pending' | 'not_found';
@@ -62,11 +66,22 @@ export interface Recipe extends Synced {
   kcalPerServing?: number;
   ingredients: RecipeIngredient[];
   steps: string[];
+  /** Appliances the recipe needs, as Gemini listed them. */
+  appliances?: string[];
   source: 'gemini' | 'mine';
 }
+
+/** Household preferences, one synced row. */
+export interface Prefs extends Synced {
+  /** The appliances in this kitchen; recipes use only these. Empty means not set. */
+  appliances: string[];
+}
+
+export const PREFS_ID = 'prefs';
 
 /** Everything that syncs, as one document. The Gemini key is not in it: it never leaves the phone. */
 export interface Dump {
   items: Item[];
   recipes: Recipe[];
+  prefs: Prefs[];
 }

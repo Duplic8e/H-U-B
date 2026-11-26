@@ -56,7 +56,7 @@ describe('asking Gemini for recipes', () => {
 
   it('links ingredients to pantry items and cleans the answer up', async () => {
     const [r] = await suggestRecipes(PANTRY, '2026-11-19', {}, async () => answer([PASTA, { title: 'No steps', ingredients: [{ name: 'x', amount: '', pantry: 0 }], steps: [] }]), KEY);
-    expect(r).toEqual({ ...PASTA, ingredients: [{ name: 'spaghetti', amount: '200 g', itemId: 'b:2' }, { name: 'chopped tomatoes', amount: '1 can', itemId: 'b:1' }, { name: 'garlic', amount: '2 cloves' }, { name: 'ghost', amount: '1' }], steps: ['Boil the spaghetti.', 'Warm the tomatoes.'] });
+    expect(r).toEqual({ ...PASTA, appliances: [], ingredients: [{ name: 'spaghetti', amount: '200 g', itemId: 'b:2' }, { name: 'chopped tomatoes', amount: '1 can', itemId: 'b:1' }, { name: 'garlic', amount: '2 cloves' }, { name: 'ghost', amount: '1' }], steps: ['Boil the spaghetti.', 'Warm the tomatoes.'] });
   });
 
   it('switches to the newest Flash model when the default name is gone, and remembers it', async () => {
@@ -103,5 +103,32 @@ describe('asking Gemini for recipes', () => {
     expect(text.split('\n')).toEqual(['1. Spaghetti x1, expires in 2 days', '2. Chopped tomatoes, 400 g (Mutti) x2', '3. Takis Fuego x1']);
     expect(byNumber.get(3)?.id).toBe('b:3');
     expect(buildPrompt('', { onlyHave: true })).toContain('Use only pantry items');
+  });
+});
+
+describe('appliances and units', () => {
+  it('limits recipes to the kitchen\'s appliances, in the prompt and the answer schema', async () => {
+    let body: { contents: Array<{ parts: Array<{ text: string }> }>; generationConfig: { responseJsonSchema: { properties: { recipes: { items: { properties: { appliances: unknown } } } } } } } | undefined;
+    const kitchen = ['Air fryer', 'Microwave'];
+    const result = await suggestRecipes([item('m:chicken-thigh:freezer', 'Chicken thighs (frozen)', { quantity: 6, unit: 'pieces' })], '2026-11-26', { appliances: kitchen }, async (_u, i) => {
+      body = JSON.parse(String(i!.body));
+      return answer([
+        { ...PASTA, title: 'Air fryer thighs', appliances: ['Air fryer'] },
+        { ...PASTA, title: 'Oven roast', appliances: ['Oven', 'Air fryer'] },
+        { ...PASTA, title: 'No-cook salad', appliances: [] },
+      ]);
+    }, KEY);
+    const prompt = body!.contents[0]!.parts[0]!.text;
+    expect(prompt).toContain('1. Chicken thighs (frozen) x6 pieces');
+    expect(prompt).toContain('only these appliances: Air fryer, Microwave');
+    expect(body!.generationConfig.responseJsonSchema.properties.recipes.items.properties.appliances).toEqual({ type: 'array', description: 'Every appliance the recipe uses.', items: { type: 'string', enum: kitchen } });
+    expect(result.map((r) => r.title)).toEqual(['Air fryer thighs', 'No-cook salad']);
+    expect(result[0]!.appliances).toEqual(['Air fryer']);
+  });
+  it('leaves appliances open when none are set', async () => {
+    let prompt = '';
+    const [r] = await suggestRecipes(PANTRY, '2026-11-19', {}, async (_u, i) => { prompt = JSON.parse(String(i!.body)).contents[0].parts[0].text; return answer([{ ...PASTA, appliances: ['Oven'] }]); }, KEY);
+    expect(prompt).not.toContain('appliances');
+    expect(r!.appliances).toEqual(['Oven']);
   });
 });
