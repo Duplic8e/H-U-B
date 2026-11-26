@@ -18,7 +18,27 @@ function reason(e: unknown): string {
   return 'The camera could not be started.';
 }
 
-export type ScanMode = 'one' | 'many';
+export type ScanMode = 'one' | 'many' | 'remove';
+
+/** What the camera sees, as a small JPEG data URL, so a product nobody recognises can be told apart later. */
+export function grabFrame(video: HTMLVideoElement, maxWidth = 360): string | undefined {
+  try {
+    const w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) return undefined;
+    const scale = Math.min(1, maxWidth / w);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const url = canvas.toDataURL('image/jpeg', 0.6);
+    return url.startsWith('data:image/jpeg') ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The result of the last scan in Use up mode. */
+export interface Removal { text: string; tone: 'ok' | 'warn'; undo?: () => void }
 
 /** In groceries mode, the same barcode counts again only after it has been out of view this long,
  *  so holding one pack in front of the camera adds it once. */
@@ -42,13 +62,16 @@ export interface Batch {
 }
 
 /** Full-screen camera. One item: reports the first barcode it reads and closes. Groceries: stays
- *  open and reports every pack, with a tick and a flash for each. */
-export function Scanner({ mode, onMode, onCode, onBatchCode, batch, onReview, onClose, onManual }: {
+ *  open and reports every pack, with a tick and a flash for each. Use up: stays open and takes one
+ *  pack of each scanned product out of the pantry. */
+export function Scanner({ mode, onMode, onCode, onBatchCode, onRemoveCode, batch, removal, onReview, onClose, onManual }: {
   mode: ScanMode;
   onMode: (mode: ScanMode) => void;
-  onCode: (barcode: string) => void;
-  onBatchCode: (barcode: string) => void;
+  onCode: (barcode: string, photo?: string) => void;
+  onBatchCode: (barcode: string, photo?: string) => void;
+  onRemoveCode: (barcode: string) => void;
   batch: Batch;
+  removal?: Removal;
   onReview: () => void;
   onClose: () => void;
   onManual: () => void;
@@ -56,8 +79,8 @@ export function Scanner({ mode, onMode, onCode, onBatchCode, batch, onReview, on
   const video = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string>();
   const [flash, setFlash] = useState(0);
-  const handlers = useRef({ onCode, onBatchCode, mode });
-  handlers.current = { onCode, onBatchCode, mode };
+  const handlers = useRef({ onCode, onBatchCode, onRemoveCode, mode });
+  handlers.current = { onCode, onBatchCode, onRemoveCode, mode };
 
   useEffect(() => {
     if (!flash) return;
@@ -87,8 +110,13 @@ export function Scanner({ mode, onMode, onCode, onBatchCode, batch, onReview, on
               for (const found of await detector.detect(el)) {
                 const code = normalizeBarcode(found.rawValue, found.format);
                 if (!code || stopped) continue;
-                if (handlers.current.mode === 'one') { stopped = true; handlers.current.onCode(code); return; }
-                if (fresh(code, Date.now())) { beep(); setFlash(Date.now()); handlers.current.onBatchCode(code); }
+                const h = handlers.current;
+                if (h.mode === 'one') { stopped = true; h.onCode(code, grabFrame(el)); return; }
+                if (!fresh(code, Date.now())) continue;
+                beep();
+                setFlash(Date.now());
+                if (h.mode === 'many') h.onBatchCode(code, grabFrame(el));
+                else h.onRemoveCode(code);
               }
             }
           } catch (e) {
@@ -116,11 +144,13 @@ export function Scanner({ mode, onMode, onCode, onBatchCode, batch, onReview, on
   }, [onClose]);
 
   const many = mode === 'many';
+  const remove = mode === 'remove';
+  const title = many ? 'Scan groceries' : remove ? 'Use up items' : 'Scan a barcode';
   return (
-    <div class="scanner" role="dialog" aria-modal="true" aria-label={many ? 'Scan groceries' : 'Scan a barcode'}>
+    <div class={`scanner${remove ? ' removing' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
       {!error && <video ref={video} playsInline muted autoplay />}
       <div class="scanner-top">
-        <h2>{many ? 'Scan groceries' : 'Scan a barcode'}</h2>
+        <h2>{title}</h2>
         <button type="button" class="icon-btn" aria-label="Close" onClick={onClose}><Icon name="x" /></button>
       </div>
       {error ? (
@@ -133,10 +163,18 @@ export function Scanner({ mode, onMode, onCode, onBatchCode, batch, onReview, on
           <div class={`scanner-frame${flash ? ' hit' : ''}`}><div /></div>
           <div class="scanner-bottom">
             <div class="scan-modes" role="radiogroup" aria-label="Scan mode">
-              <button type="button" role="radio" aria-checked={!many} onClick={() => onMode('one')}>One item</button>
+              <button type="button" role="radio" aria-checked={mode === 'one'} onClick={() => onMode('one')}>One item</button>
               <button type="button" role="radio" aria-checked={many} onClick={() => onMode('many')}>Groceries</button>
+              <button type="button" role="radio" aria-checked={remove} onClick={() => onMode('remove')}>Use up</button>
             </div>
-            {many ? (
+            {remove ? (
+              <>
+                <p class={`scan-last${removal?.tone === 'warn' ? ' warn' : ''}`} role="status" aria-live="polite">
+                  {removal ? <>{removal.text}{removal.undo && <button type="button" class="scan-undo" onClick={removal.undo}>Undo</button>}</> : 'Scan what you finished. Each scan takes one out of the pantry.'}
+                </p>
+                <button type="button" class="btn primary block" onClick={onClose}>Done</button>
+              </>
+            ) : many ? (
               <>
                 <p class="scan-last" role="status" aria-live="polite">
                   {batch.last ? <>{batch.last.name}{batch.last.count > 1 && <b> ×{batch.last.count}</b>}</> : 'Scan each item. Move it away before scanning another of the same.'}

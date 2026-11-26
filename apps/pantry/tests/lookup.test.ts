@@ -5,7 +5,7 @@ const nutella = { code: '3017620422003', status: 1, product: { product_name: 'Nu
 
 describe('reading a product', () => {
   it('reads the name, size, first brand and photo', () => {
-    expect(parseProduct(nutella)).toEqual({ name: 'Nutella, 400 g', brand: 'Ferrero', imageUrl: nutella.product.image_front_small_url });
+    expect(parseProduct(nutella)).toEqual({ name: 'Nutella, 400 g', brand: 'Ferrero', imageUrl: nutella.product.image_front_small_url, category: 'sweets' });
   });
   it('does not repeat a size the name already has', () => {
     expect(parseProduct({ status: 1, product: { product_name: 'Cola 330 ml', quantity: '330 ml' } })?.name).toBe('Cola 330 ml');
@@ -17,7 +17,7 @@ describe('reading a product', () => {
     expect(parseProduct({ status: 1, product: { product_name: '', product_name_nl: 'Intense Nacho' } })?.name).toBe('Intense Nacho');
   });
   it('falls back to the brand when no name is recorded', () => {
-    expect(parseProduct({ status: 1, product: { brands: 'Takis' } })).toEqual({ name: 'Takis', brand: 'Takis', imageUrl: undefined });
+    expect(parseProduct({ status: 1, product: { brands: 'Takis' } })).toEqual({ name: 'Takis', brand: 'Takis', imageUrl: undefined, category: 'snacks' });
   });
   it('treats a missing product as not found and ignores a photo that is not https', () => {
     expect(parseProduct({ status: 0, status_verbose: 'product not found' })).toBeNull();

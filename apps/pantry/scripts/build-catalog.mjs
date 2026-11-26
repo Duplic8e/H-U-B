@@ -7,7 +7,7 @@
 // Sources, in the order they win when two know a product: o Open Food Facts, p Open Products Facts,
 // b Open Beauty Facts, f Open Pet Food Facts (all the same file format), u USDA branded foods.
 // Writes one gzip file per shard (the 4 digits before the check digit, so lookups fetch ~10 KB),
-// plus meta.json. Each line: code \t name \t brand \t quantity \t image \t source \t nutrition, where
+// plus meta.json. Each line: code \t name \t brand \t quantity \t image \t source \t nutrition \t category, where
 // nutrition is "per;amounts;serving size;serving" with the amounts in the order of AMOUNTS below
 // (per 100 g, or 100 ml for drinks). src/data/nutrition.ts reads it back.
 // Either input can be left out. Lines are sorted, so the same inputs give the same files.
@@ -15,6 +15,7 @@ import { createReadStream, existsSync, mkdirSync, rmSync, writeFileSync } from '
 import { createInterface } from 'node:readline';
 import { createGunzip, gzipSync } from 'node:zlib';
 import { join } from 'node:path';
+import CATEGORIES from '../src/data/categories.json' with { type: 'json' };
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1]]] : acc), []));
 const out = args.out ?? 'dist/barcodes';
@@ -64,6 +65,26 @@ function nutritionField(raw, per, servingSize, serving) {
   const size = num(servingSize);
   return [per, values.join(','), size && Number.isFinite(size) && size > 0 && size < 5000 ? Math.round(size * 10) / 10 : '', clean(serving).replace(/;/g, ',')].join(';').replace(/;+$/, '');
 }
+// ---- categories, shared with src/data/categories.ts (same rules file, same matching) ----
+const fold = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const WORDS = CATEGORIES.map((c) => ({ code: c.code, re: c.words.length ? new RegExp(`\\b(${c.words.join('|')})\\b`, 'i') : null }));
+const TAGS = CATEGORIES.map((c) => ({ code: c.code, tags: new Set(c.tags) }));
+const CODE_OF = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.code]));
+function categoryCode(tags, ...texts) {
+  if (tags) {
+    const plain = tags.split(',').map((t) => t.trim().replace(/^[a-z]{2}:/, '')).filter(Boolean);
+    const hit = TAGS.find((c) => plain.some((t) => c.tags.has(t)));
+    if (hit) return hit.code;
+  }
+  for (const text of texts) {
+    if (!text) continue;
+    const t = fold(text);
+    const hit = WORDS.find((w) => w.re?.test(t));
+    if (hit) return hit.code;
+  }
+  return '';
+}
+
 const isLiquid = (quantity) => /\d\s*(ml|cl|dl|l|fl\.? ?oz)\b/i.test(quantity ?? '');
 
 /** bare code → the line for it: code, name, brand, quantity, image, source, nutrition */
@@ -104,9 +125,10 @@ async function readFacts(source, path) {
       cholesterolMg: mg('cholesterol_100g'), carbs: f[col.carbohydrates_100g], fiber: f[col.fiber_100g], sugars: f[col.sugars_100g],
       protein: f[col.proteins_100g], sodiumMg: mg('sodium_100g'),
     }, isLiquid(quantity) ? 'ml' : 'g', f[col.serving_quantity], f[col.serving_size]);
+    const cat = source === 'f' ? CODE_OF.pet : source === 'o' ? categoryCode(f[col.categories_tags], `${name} ${brand}`) : CODE_OF.household;
     counts[source]++;
     if (facts) counts.nutrition++;
-    rows.set(key, own([code, name, brand, quantity, image, source, facts].join('\t')));
+    rows.set(key, own([code, name, brand, quantity, image, source, facts, cat].join('\t')));
   }
 }
 
@@ -145,7 +167,7 @@ async function readUsda(dir) {
     const household = clean(r.household_serving_fulltext);
     const printed = unit && amount ? `${Math.round(amount * 10) / 10} ${unit}` : '';
     latest.set(key, {
-      id: r.fdc_id, code, date: r.available_date, brand: titleCase(clean(r.brand_name) || clean(r.brand_owner)), size: usdaSize(clean(r.package_weight).split('/')[0].trim()),
+      id: r.fdc_id, code, date: r.available_date, group: clean(r.branded_food_category), brand: titleCase(clean(r.brand_name) || clean(r.brand_owner)), size: usdaSize(clean(r.package_weight).split('/')[0].trim()),
       per: unit === 'ml' ? 'ml' : 'g', servingSize: unit ? amount : undefined,
       serving: household && printed && !/^amount per serving$/i.test(household) ? `${household.toLowerCase()} (${printed})` : printed,
     });
@@ -173,12 +195,15 @@ async function readUsda(dir) {
     // USDA only fills in nutrition they lack.
     if (known) {
       const fields = known.split('\t');
-      if (!fields[6] && facts) { fields[6] = facts; rows.set(key, own(fields.join('\t'))); counts.nutrition++; }
+      let changedRow = false;
+      if (!fields[6] && facts) { fields[6] = facts; counts.nutrition++; changedRow = true; }
+      if (!fields[7]) { const cat = categoryCode('', v.group, name); if (cat) { fields[7] = cat; changedRow = true; } }
+      if (changedRow) rows.set(key, own(fields.join('\t')));
       continue;
     }
     counts.u++;
     if (facts) counts.nutrition++;
-    rows.set(key, own([v.code, name, v.brand, v.size, '', 'u', facts].join('\t')));
+    rows.set(key, own([v.code, name, v.brand, v.size, '', 'u', facts, categoryCode('', v.group, name)].join('\t')));
   }
 }
 

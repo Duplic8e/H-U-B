@@ -71,7 +71,7 @@ export function Groceries({ onScanMore }: { onScanMore: () => void }) {
                 return (
                   <li key={scan.barcode} class="row item">
                     <button type="button" class="item-open" onClick={() => setEditing(scan)} aria-label={`Edit ${scan.name || `barcode ${scan.barcode}`}`}>
-                      <Thumb name={scan.name || '?'} src={scan.imageUrl} />
+                      <Thumb name={scan.name || '?'} src={scan.imageUrl ?? scan.photo} />
                       <span class="row-main">
                         <span class="row-title wrap">{scan.name || `Barcode ${scan.barcode}`}</span>
                         <span class={`row-sub ${st.tone ?? ''}`}>{st.text}</span>
@@ -94,9 +94,9 @@ export function Groceries({ onScanMore }: { onScanMore: () => void }) {
       {editing && (
         <ItemSheet
           key={editing.barcode}
-          draft={{ mode: 'scan', barcode: editing.barcode, name: editing.name, brand: editing.brand, imageUrl: editing.imageUrl, quantity: editing.count, expiresOn: editing.expiresOn, nutrition: editing.nutrition }}
+          draft={{ mode: 'scan', barcode: editing.barcode, name: editing.name, brand: editing.brand, imageUrl: editing.imageUrl, photo: editing.photo, category: editing.category, quantity: editing.count, expiresOn: editing.expiresOn, nutrition: editing.nutrition }}
           onClose={() => setEditing(null)}
-          onSave={async (v) => repo.updateScan(editing.barcode, { name: v.name, brand: v.brand.trim() || undefined, count: v.quantity, expiresOn: v.expiresOn || undefined, edited: v.name !== editing.name || (v.brand.trim() || undefined) !== editing.brand || editing.edited })}
+          onSave={async (v) => repo.updateScan(editing.barcode, { category: v.category, photo: v.photo, name: v.name, brand: v.brand.trim() || undefined, count: v.quantity, expiresOn: v.expiresOn || undefined, edited: v.name !== editing.name || (v.brand.trim() || undefined) !== editing.brand || editing.edited })}
           onRemove={async () => repo.removeScan(editing.barcode)}
         />
       )}

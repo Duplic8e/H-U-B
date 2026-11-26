@@ -21,6 +21,10 @@ export interface Item extends Synced {
   expiresOn?: string;
   /** From the product databases, when they have it. */
   nutrition?: Nutrition;
+  /** One of CATEGORIES' ids ("carbs", "protein"…); guessed from the name when absent. */
+  category?: string;
+  /** A small JPEG (data URL) from the camera when it was scanned, for products with no photo of their own. */
+  photo?: string;
   /** What the quantity counts, for things weighed or bought loose ("pieces", "lb"). Packs when absent. */
   unit?: string;
   /** Where fresh meat is kept, which sets its suggested expiry. */
@@ -45,6 +49,9 @@ export interface Scan {
   expiresOn?: string;
   /** Set once the name was typed or changed, so a late lookup does not overwrite it. */
   edited?: boolean;
+  category?: string;
+  /** What the camera saw when it was first scanned. */
+  photo?: string;
 }
 
 /** One line of a recipe. */

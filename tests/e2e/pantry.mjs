@@ -141,7 +141,7 @@ async function install() {
 const shot = async (page, name) => { if (shots) await page.screenshot({ path: join(shots, `pantry-${name}.png`) }); };
 const row = (page, name) => page.locator('.list > li', { hasText: name });
 /** The sheet opens at once; the name arrives when the lookup does. */
-const nameBecomes = (page, value) => page.waitForFunction((v) => document.querySelector('[role=dialog] input')?.value === v, value, { timeout: 15000 });
+const nameBecomes = (page, value) => page.waitForFunction((v) => document.querySelector('[role=dialog] input.input')?.value === v, value, { timeout: 15000 });
 
 const { context, page } = await install();
 await page.getByText('Nothing in the pantry yet').waitFor();
@@ -185,6 +185,12 @@ await manual.getByRole('button', { name: 'Add to pantry' }).click();
 await row(page, 'Bananas').waitFor();
 assert.deepEqual(await page.locator('.list .row-title').allTextContents(), ['Nutella, 400 g', 'Bananas'], 'dated items come first');
 await page.getByText('2 products, 4 items').waitFor();
+// Categories: Nutella is a sweet, bananas are fruit; the filter shows one kind.
+await page.getByRole('button', { name: 'Sweets 1' }).click();
+assert.deepEqual(await page.locator('.list .row-title').allTextContents(), ['Nutella, 400 g']);
+await page.getByRole('button', { name: 'Fruits & veg 1' }).click();
+assert.deepEqual(await page.locator('.list .row-title').allTextContents(), ['Bananas']);
+await page.getByRole('button', { name: 'All', exact: true }).click();
 await shot(page, '4-list');
 
 // Search.
@@ -249,6 +255,8 @@ await shot(offline.page, '6-not-found');
 await unknown.getByRole('button', { name: 'Add to pantry' }).click();
 await offline.page.getByText('Added. Looking it up in the background.').waitFor();
 await row(offline.page, 'Looking up…').waitFor();
+// The camera's view at the moment of the scan is the item's picture until a real one turns up.
+assert.match(await row(offline.page, 'Looking up…').locator('img.thumb').getAttribute('src'), /^data:image\/jpeg;base64,/);
 await shot(offline.page, '6b-waiting');
 online = true;
 await offline.page.evaluate(() => window.dispatchEvent(new Event('online')));
@@ -291,7 +299,7 @@ await shot(small.page, '7-try-again');
 offDown = false;
 builtInCopy = true;
 await retry.getByRole('button', { name: 'Try again' }).click();
-await small.page.waitForFunction(() => document.querySelector('[role=dialog] input')?.value === 'Flat toothpicks, 750 pcs', null, { timeout: 15000 });
+await small.page.waitForFunction(() => document.querySelector('[role=dialog] input.input')?.value === 'Flat toothpicks, 750 pcs', null, { timeout: 15000 });
 
 // Settings shows the size of the built-in copy.
 await small.page.goto(`${url}#/settings`);
@@ -403,6 +411,18 @@ assert.ok(!cloud.text.includes(GEMINI_KEY), 'the Gemini key is not in the backup
 assert.equal(await gp.evaluate(() => localStorage.getItem('pantry-gemini-key')), GEMINI_KEY);
 await gp.getByRole('button', { name: 'Remove key' }).click();
 assert.equal(await gp.evaluate(() => localStorage.getItem('pantry-gemini-key')), null);
+
+// Use up by scanning: each scan takes one pack out; the last one removes it; Undo puts it back.
+await gp.goto(`${url}#/`);
+await gp.getByRole('button', { name: 'Scan barcode' }).click();
+await gp.getByRole('radio', { name: 'Use up' }).click();
+await gp.getByRole('dialog', { name: 'Use up items' }).waitFor();
+await gp.getByText('Flat toothpicks, 750 pcs: used up').waitFor({ timeout: 30000 });
+if (shots) await shot(gp, '14-use-up');
+await gp.getByRole('button', { name: 'Undo' }).click();
+await gp.getByText('Put back Flat toothpicks, 750 pcs').waitFor();
+await gp.getByRole('button', { name: 'Done' }).click();
+await row(gp, 'Flat toothpicks').locator('output', { hasText: '1' }).waitFor();
 await bags.context.close();
 
 await browser.close();

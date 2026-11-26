@@ -27,6 +27,18 @@ What food is at home, for the Hub. Served at `/H-U-B/pantry/`.
   marked in the pantry, missing, or a kitchen basic. Save the ones you like to the recipe book (backed up
   with the pantry), or type in your own; the book lists what you can make now first. "I cooked this"
   takes the packs you finished out of the pantry.
+- **Use up by scanning**: switch the scanner to Use up and scan what you finished. Each scan takes one
+  pack out (the last one removes the item), with Undo; a product not in the pantry says so. As in
+  Groceries mode, a pack held in view counts once.
+- **Categories**: every item is filed as Protein, Carbs, Dairy, Fruits & veg, Snacks, Sweets, Drinks,
+  Sauces & condiments, Baking & spices, Ready meals, Household, Pet food or Other, and the list has a
+  filter row. The category comes from Open Food Facts' category tags, USDA's category names, or the
+  product name (English or French), in that order, and can be changed on the item. The rules are one
+  file, `src/data/categories.json`, used by both the app and the built-in copy.
+- **Photos of unrecognised products**: every scan grabs a small frame from the camera (360 px JPEG,
+  about 10 KB). A product with a photo of its own drops it; one no database knows keeps it as its
+  picture, so you can tell unnamed items apart later. Any item can also get a photo with Add a photo.
+  Photos are stored on the item and backed up with the pantry.
 - **Meat**: chicken (breasts, thighs, wings, drumsticks, whole, ground) and beef (ground, steaks, stewing,
   roast) have no barcode, so the Meat button adds them: how many, counted in pieces / packs / whole / lb /
   kg, kept in the fridge or freezer, with a use-by date suggested from food-safety guidance (change it to
