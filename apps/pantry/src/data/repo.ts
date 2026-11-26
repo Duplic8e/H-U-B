@@ -19,6 +19,8 @@ export interface ItemInput {
   lookup?: Item['lookup'];
   unit?: string;
   storage?: Item['storage'];
+  category?: string;
+  photo?: string;
 }
 
 export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
@@ -52,6 +54,9 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
         // A name typed or found ends the wait; an item without one keeps waiting for its lookup.
         lookup: input.name.trim() ? undefined : input.lookup ?? (input.barcode ? 'pending' : undefined),
         ...(input.unit ? { unit: input.unit } : {}), ...(input.storage ? { storage: input.storage } : {}),
+        ...(input.category ? { category: input.category } : {}),
+        // A product's own photo makes the scan photo unnecessary.
+        ...(input.photo && !clean(input.imageUrl) ? { photo: input.photo } : {}),
       });
       changed();
       return id;
@@ -66,19 +71,34 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
       if (result.status === 'not_found') await db.items.put({ ...row, lookup: 'not_found', updatedAt: at });
       else {
         const p = result.product;
+        const imageUrl = row.imageUrl ?? p.imageUrl;
         await db.items.put({
           ...row, updatedAt: at, lookup: undefined,
-          name: row.name.trim() || p.name, brand: row.brand ?? p.brand, imageUrl: row.imageUrl ?? p.imageUrl, nutrition: row.nutrition ?? p.nutrition,
+          name: row.name.trim() || p.name, brand: row.brand ?? p.brand, imageUrl, nutrition: row.nutrition ?? p.nutrition,
+          category: row.category ?? p.category, photo: imageUrl ? undefined : row.photo,
         });
       }
       changed();
     },
-    /** Fills in nutrition looked up after the item was saved. */
-    async setNutrition(id: string, nutrition: Nutrition) {
+    /** Fills in nutrition (and a category) looked up after the item was saved. */
+    async setNutrition(id: string, nutrition: Nutrition | undefined, category?: string) {
       const row = await db.items.get(id);
-      if (!row || row.nutrition) return;
-      await db.items.put({ ...row, nutrition, updatedAt: stamp() });
+      if (!row || ((row.nutrition || !nutrition) && (row.category || !category))) return;
+      await db.items.put({ ...row, nutrition: row.nutrition ?? nutrition, category: row.category ?? category, updatedAt: stamp() });
       changed();
+    },
+    /** Uses up one pack of a scanned product. Null when the pantry has none. */
+    async useUpByBarcode(barcode: string): Promise<{ item: Item; left: number } | null> {
+      const row = await db.items.get(barcodeId(barcode));
+      if (!row || row.deletedAt || row.quantity <= 0) return null;
+      return { item: row, left: await repo.adjust(row.id, -1) };
+    },
+    /** Puts back one pack that was used up by mistake. */
+    async undoUseUp(id: string) {
+      const row = await db.items.get(id);
+      if (!row) return;
+      if (row.deletedAt) await repo.restore(id);
+      else await repo.adjust(id, 1);
     },
     /** Adds to or uses up stock. Reaching zero removes the item. Returns the new quantity. */
     async adjust(id: string, delta: number): Promise<number> {
@@ -110,7 +130,7 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
       return db.scans.orderBy('scannedAt').toArray();
     },
     /** Counts one more pack of a product. A product Pantry already knows needs no lookup. */
-    async addScan(barcode: string): Promise<Scan> {
+    async addScan(barcode: string, photo?: string): Promise<Scan> {
       return db.transaction('rw', db.scans, db.items, async () => {
         const have = await db.scans.get(barcode);
         if (have) {
@@ -120,8 +140,8 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
         }
         const known = await db.items.get(barcodeId(barcode));
         const scan: Scan = known
-          ? { barcode, count: 1, scannedAt: stamp(), lookup: 'known', name: known.name, brand: known.brand, imageUrl: known.imageUrl, nutrition: known.nutrition }
-          : { barcode, count: 1, scannedAt: stamp(), name: '' };
+          ? { barcode, count: 1, scannedAt: stamp(), lookup: 'known', name: known.name, brand: known.brand, imageUrl: known.imageUrl, nutrition: known.nutrition, category: known.category, photo: known.imageUrl ? undefined : known.photo }
+          : { barcode, count: 1, scannedAt: stamp(), name: '', ...(photo ? { photo } : {}) };
         await db.scans.put(scan);
         return scan;
       });
@@ -157,6 +177,8 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
             quantity: (live?.quantity ?? 0) + s.count,
             expiresOn: dates[0],
             nutrition: live?.nutrition ?? s.nutrition ?? row?.nutrition,
+            category: live?.category ?? s.category ?? row?.category,
+            photo: (s.imageUrl ?? live?.imageUrl) ? undefined : (live?.photo ?? s.photo ?? row?.photo),
             lookup: name ? undefined : s.lookup === 'not_found' ? 'not_found' : 'pending',
           });
           await db.scans.delete(s.barcode);
@@ -189,7 +211,7 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
       const dates = [sameUnit ? live?.expiresOn : undefined, input.expiresOn].filter((d): d is string => !!d).sort();
       await db.items.put({
         id, updatedAt: stamp(), name: input.storage === 'freezer' ? `${input.name} (frozen)` : input.name,
-        quantity, unit: input.unit, storage: input.storage, expiresOn: dates[0],
+        quantity, unit: input.unit, storage: input.storage, expiresOn: dates[0], category: 'protein',
       });
       changed();
       return quantity;

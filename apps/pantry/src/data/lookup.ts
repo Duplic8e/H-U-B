@@ -1,4 +1,5 @@
 import { readShard, shardOf, withSize } from './catalog';
+import { categoryFromTags, categoryFromWords } from './categories';
 import { fromOpenFoodFacts, type Nutrition } from './nutrition';
 
 /** What a barcode lookup can tell us about a product. */
@@ -7,6 +8,8 @@ export interface Product {
   brand?: string;
   imageUrl?: string;
   nutrition?: Nutrition;
+  /** One of CATEGORIES' ids. */
+  category?: string;
 }
 
 /** `incomplete`: some databases could not be reached and none of the others know the product. */
@@ -32,7 +35,8 @@ export function parseProduct(raw: unknown): Product | null {
   const size = text(p.quantity)?.replace(/\s*\be$/, '').trim() || undefined;
   const image = text(p.image_front_small_url) ?? text(p.image_small_url) ?? text(p.image_front_url);
   const nutrition = fromOpenFoodFacts(p) ?? undefined;
-  return { name: withSize(base, size), brand, imageUrl: image?.startsWith('https://') ? image : undefined, ...(nutrition ? { nutrition } : {}) };
+  const category = categoryFromTags(p.categories_tags) ?? categoryFromWords(`${base} ${brand ?? ''}`);
+  return { name: withSize(base, size), brand, imageUrl: image?.startsWith('https://') ? image : undefined, ...(nutrition ? { nutrition } : {}), ...(category ? { category } : {}) };
 }
 
 interface Source {
@@ -44,14 +48,15 @@ interface Source {
   builtIn?: boolean;
 }
 
-const FIELDS = `fields=${[...NAME_FIELDS, 'brands', 'quantity', 'image_front_small_url', 'image_small_url', 'image_front_url', 'nutriments', 'serving_size', 'serving_quantity', 'product_quantity_unit'].join(',')}`;
-const facts = (name: string, host: string): Source => ({
+const FIELDS = `fields=${[...NAME_FIELDS, 'brands', 'quantity', 'image_front_small_url', 'image_small_url', 'image_front_url', 'nutriments', 'serving_size', 'serving_quantity', 'product_quantity_unit', 'categories_tags'].join(',')}`;
+const facts = (name: string, host: string, fallbackCategory?: string): Source => ({
   name,
   url: (b) => `https://${host}/api/v2/product/${encodeURIComponent(b)}.json?${FIELDS}`,
   read: async (res) => {
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`${name} ${res.status}`);
-    return parseProduct(await res.json());
+    const p = parseProduct(await res.json());
+    return p && fallbackCategory && !p.category ? { ...p, category: fallbackCategory } : p;
   },
 });
 
@@ -69,9 +74,9 @@ export function sources(base: string = import.meta.env.BASE_URL): Source[] {
   return [
     facts('Open Food Facts', 'world.openfoodfacts.org'),
     builtIn(base),
-    facts('Open Products Facts', 'world.openproductsfacts.org'),
-    facts('Open Beauty Facts', 'world.openbeautyfacts.org'),
-    facts('Open Pet Food Facts', 'world.openpetfoodfacts.org'),
+    facts('Open Products Facts', 'world.openproductsfacts.org', 'household'),
+    facts('Open Beauty Facts', 'world.openbeautyfacts.org', 'household'),
+    facts('Open Pet Food Facts', 'world.openpetfoodfacts.org', 'pet'),
   ];
 }
 

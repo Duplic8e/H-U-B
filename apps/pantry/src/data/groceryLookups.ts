@@ -42,13 +42,15 @@ export class GroceryLookups {
     const now = (await this.repo.listScans()).find((s) => s.barcode === barcode);
     if (!now) return;
     if (now.lookup === 'known') {
-      if (result.status === 'found' && result.product.nutrition && !now.nutrition) await this.repo.updateScan(barcode, { nutrition: result.product.nutrition });
+      if (result.status === 'found' && ((result.product.nutrition && !now.nutrition) || (result.product.category && !now.category))) {
+        await this.repo.updateScan(barcode, { nutrition: now.nutrition ?? result.product.nutrition, category: now.category ?? result.product.category });
+      }
       return;
     }
     if (result.status !== 'found') { await this.repo.updateScan(barcode, { lookup: result.status }); return; }
     const p = result.product;
     await this.repo.updateScan(barcode, {
-      lookup: 'found', imageUrl: now.imageUrl ?? p.imageUrl, nutrition: now.nutrition ?? p.nutrition,
+      lookup: 'found', imageUrl: now.imageUrl ?? p.imageUrl, nutrition: now.nutrition ?? p.nutrition, category: now.category ?? p.category,
       ...(now.edited ? {} : { name: p.name, brand: p.brand }),
     });
   }

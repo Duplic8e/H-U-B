@@ -100,7 +100,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: apps/pantry/catalog
-          key: pantry-catalog-${{ steps.week.outputs.week }}-${{ hashFiles('apps/pantry/scripts/build-catalog.mjs', 'apps/pantry/scripts/fetch-catalog.sh') }}
+          key: pantry-catalog-${{ steps.week.outputs.week }}-${{ hashFiles('apps/pantry/scripts/build-catalog.mjs', 'apps/pantry/scripts/fetch-catalog.sh', 'apps/pantry/src/data/categories.json') }}
 
       # About 2 GB of downloads and 5 minutes. If it fails, Pantry deploys without the copy and its
       # scans use the online databases only; Settings says so.

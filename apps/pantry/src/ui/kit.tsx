@@ -82,7 +82,8 @@ export function Stepper({ value, onChange, label, min = 0, large }: { value: num
 /** Product photo, or the first letter of the name when there is none or it fails to load. */
 export function Thumb({ name, src, big }: { name: string; src?: string; big?: boolean }) {
   const [failed, setFailed] = useState<string>();
-  const cls = `thumb${big ? ' big' : ''}`;
+  // A photo from the scan fills its square; a product photo is shown whole.
+  const cls = `thumb${big ? ' big' : ''}${src?.startsWith('data:') ? ' photo' : ''}`;
   if (src && failed !== src) return <img class={cls} src={src} alt="" loading="lazy" referrerpolicy="no-referrer" onError={() => setFailed(src)} />;
   return <span class={cls} aria-hidden="true">{name.trim().charAt(0).toUpperCase() || '?'}</span>;
 }

@@ -7,7 +7,7 @@ import { PantrySync } from './sync/sync';
 import { ItemSheet, type Draft } from './features/ItemSheet';
 import { List } from './features/List';
 import { Settings } from './features/Settings';
-import { Scanner, type Batch, type ScanMode } from './ui/Scanner';
+import { Scanner, type Batch, type Removal, type ScanMode } from './ui/Scanner';
 import { unlockSound } from './ui/beep';
 import { Groceries } from './features/Groceries';
 import { Recipes } from './features/Recipes';
@@ -21,15 +21,15 @@ const groceryLookups = new GroceryLookups(repo);
 const itemLookups = new ItemLookups(repo);
 
 const MODE_KEY = 'pantry-scan-mode';
-const savedMode = (): ScanMode => { try { return localStorage.getItem(MODE_KEY) === 'many' ? 'many' : 'one'; } catch { return 'one'; } };
+const savedMode = (): ScanMode => { try { const m = localStorage.getItem(MODE_KEY); return m === 'many' || m === 'remove' ? m : 'one'; } catch { return 'one'; } };
 
 /** The sheet for a barcode that was just read: the item it already is, the product it was, or a new
  *  one that looks itself up while the sheet is open. Never waits on the network. */
-async function draftFor(barcode: string): Promise<Draft> {
+async function draftFor(barcode: string, photo?: string): Promise<Draft> {
   const known = await repo.findByBarcode(barcode);
   if (known && !known.deletedAt) return { mode: 'another', existing: known, barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: known.quantity + 1, expiresOn: known.expiresOn, nutrition: known.nutrition, lookUp: known.lookup === 'pending' };
-  if (known?.name) return { mode: 'new', barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, quantity: 1, nutrition: known.nutrition };
-  return { mode: 'new', barcode, name: '', quantity: 1, lookUp: true };
+  if (known?.name) return { mode: 'new', barcode, name: known.name, brand: known.brand, imageUrl: known.imageUrl, photo: known.photo, category: known.category, quantity: 1, nutrition: known.nutrition };
+  return { mode: 'new', barcode, name: '', quantity: 1, lookUp: true, photo };
 }
 
 export function App() {
@@ -71,9 +71,9 @@ export function App() {
 
   const ctx: AppCtx = useMemo(() => ({ repo, sync, toast: setMessage }), []);
 
-  const onCode = useCallback(async (barcode: string) => {
+  const onCode = useCallback(async (barcode: string, photo?: string) => {
     setScanning(false);
-    try { setDraft(await draftFor(barcode)); } catch (e) {
+    try { setDraft(await draftFor(barcode, photo)); } catch (e) {
       console.error('Reading the pantry failed', e);
       setMessage({ message: 'Something went wrong reading that barcode.' });
     }
@@ -82,8 +82,18 @@ export function App() {
     setScanMode(mode);
     try { localStorage.setItem(MODE_KEY, mode); } catch { /* remembered for this visit only */ }
   }, []);
-  const onBatchCode = useCallback((barcode: string) => { setLastScan(barcode); void repo.addScan(barcode); }, []);
-  const startScan = useCallback(() => { unlockSound(); setLastScan(null); setScanning(true); }, []);
+  const onBatchCode = useCallback((barcode: string, photo?: string) => { setLastScan(barcode); void repo.addScan(barcode, photo); }, []);
+  const [removal, setRemoval] = useState<Removal>();
+  const onRemoveCode = useCallback(async (barcode: string) => {
+    const done = await repo.useUpByBarcode(barcode);
+    if (!done) { setRemoval({ text: `Not in your pantry (${barcode})`, tone: 'warn' }); return; }
+    const name = done.item.name || `Barcode ${barcode}`;
+    setRemoval({
+      text: done.left ? `${name}: ${done.left} left` : `${name}: used up`, tone: 'ok',
+      undo: () => { void repo.undoUseUp(done.item.id); setRemoval({ text: `Put back ${name}`, tone: 'ok' }); },
+    });
+  }, []);
+  const startScan = useCallback(() => { unlockSound(); setLastScan(null); setRemoval(undefined); setScanning(true); }, []);
   const review = useCallback(() => { setScanning(false); location.hash = '#/groceries'; }, []);
   const last = scans?.find((s) => s.barcode === lastScan);
   const batch: Batch = {
@@ -91,7 +101,7 @@ export function App() {
     last: last ? { name: last.name || (last.lookup === undefined ? 'Looking up…' : `Barcode ${last.barcode}`), count: last.count } : undefined,
   };
   const addByHand = useCallback(() => { setScanning(false); setDraft({ mode: 'new', name: '', quantity: 1 }); }, []);
-  const open = useCallback((item: Item) => setDraft({ mode: 'edit', existing: item, barcode: item.barcode, name: item.name, brand: item.brand, imageUrl: item.imageUrl, quantity: item.quantity, expiresOn: item.expiresOn, nutrition: item.nutrition, lookUp: item.lookup === 'pending' }), []);
+  const open = useCallback((item: Item) => setDraft({ mode: 'edit', existing: item, barcode: item.barcode, name: item.name, brand: item.brand, imageUrl: item.imageUrl, photo: item.photo, category: item.category, quantity: item.quantity, expiresOn: item.expiresOn, nutrition: item.nutrition, lookUp: item.lookup === 'pending' }), []);
   const closeScanner = useCallback(() => setScanning(false), []);
   const closeDraft = useCallback(() => setDraft(null), []);
 
@@ -100,7 +110,7 @@ export function App() {
       <div class="app">
         {route === 'settings' ? <Settings /> : route === 'recipes' ? <Recipes /> : route === 'groceries' ? <Groceries onScanMore={() => { changeMode('many'); startScan(); }} /> : <List onScan={startScan} onAdd={addByHand} onMeat={() => setMeat(true)} onOpen={open} />}
         {meat && <MeatSheet onClose={() => setMeat(false)} />}
-        {scanning && <Scanner mode={scanMode} onMode={changeMode} onCode={(code) => void onCode(code)} onBatchCode={onBatchCode} batch={batch} onReview={review} onClose={closeScanner} onManual={addByHand} />}
+        {scanning && <Scanner mode={scanMode} onMode={changeMode} onCode={(code, photo) => void onCode(code, photo)} onBatchCode={onBatchCode} onRemoveCode={(code) => void onRemoveCode(code)} removal={removal} batch={batch} onReview={review} onClose={closeScanner} onManual={addByHand} />}
         {draft && <ItemSheet key={`${draft.mode}:${draft.existing?.id ?? draft.barcode ?? ''}`} draft={draft} onClose={closeDraft} />}
         {message && (
           <div class="toast" role="status">

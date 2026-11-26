@@ -9,7 +9,7 @@ import { findInShard, readShard, shardOf } from '../src/data/catalog';
 import { lookupBarcode } from '../src/data/lookup';
 
 const tsv = (rows: string[][]) => gzipSync(rows.map((r) => r.join('\t')).join('\n') + '\n');
-const HEAD = ['code', 'product_name', 'abbreviated_product_name', 'generic_name', 'quantity', 'brands', 'image_small_url', 'serving_size', 'serving_quantity',
+const HEAD = ['code', 'product_name', 'abbreviated_product_name', 'generic_name', 'quantity', 'brands', 'image_small_url', 'serving_size', 'serving_quantity', 'categories_tags',
   'energy-kcal_100g', 'fat_100g', 'saturated-fat_100g', 'trans-fat_100g', 'cholesterol_100g', 'carbohydrates_100g', 'fiber_100g', 'sugars_100g', 'proteins_100g', 'sodium_100g'];
 const csv = (rows: string[][]) => rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n') + '\n';
 
@@ -17,8 +17,8 @@ const csv = (rows: string[][]) => rows.map((r) => r.map((v) => `"${v.replace(/"/
 function build() {
   const dir = mkdtempSync(join(tmpdir(), 'pantry-catalog-'));
   writeFileSync(join(dir, 'off.csv.gz'), tsv([HEAD,
-    ['3017620422003', 'Nutella', '', '', '400 g e', 'Ferrero,Nutella', 'https://images.openfoodfacts.org/images/products/301/762/042/2003/front_en.879.200.jpg'],
-    ['757528051723', 'Takis Fuego', '', '', '', 'Takis', 'https://images.openfoodfacts.org/images/products/075/752/805/1723/front_en.8.200.jpg', '28 g', '28',
+    ['3017620422003', 'Nutella', '', '', '400 g e', 'Ferrero,Nutella', 'https://images.openfoodfacts.org/images/products/301/762/042/2003/front_en.879.200.jpg', '', '', 'en:breakfasts,en:spreads,en:sweet-spreads,en:hazelnut-spreads'],
+    ['757528051723', 'Takis Fuego', '', '', '', 'Takis', 'https://images.openfoodfacts.org/images/products/075/752/805/1723/front_en.8.200.jpg', '28 g', '28', '',
       '535.714285714286', '28.5714285714286', '8.9', '0', '0', '60.7142857142857', '3.57142857142857', '3.6', '7.14', '1.5'],
     ['0757528049102', '', '', '', '', 'Takis', ''],
     ['12345', 'Not a real barcode', '', '', '', '', ''],
@@ -30,11 +30,11 @@ function build() {
   ]));
   mkdirSync(join(dir, 'usda'));
   writeFileSync(join(dir, 'usda', 'branded_food.csv'), csv([
-    ['fdc_id', 'brand_owner', 'brand_name', 'gtin_upc', 'ingredients', 'package_weight', 'available_date', 'discontinued_date', 'serving_size', 'serving_size_unit', 'household_serving_fulltext'],
-    ['1', 'The Coca-Cola Company', 'COCA-COLA', '049000028904', 'WATER, "SUGAR"\nAND MORE', '20 OZA/591 mL', '2020-01-01', '', '', '', ''],
-    ['2', 'The Coca-Cola Company', 'COCA-COLA', '00049000028904', '', '20 OZA/591 mL', '2024-06-01', '', '355', 'ml', '1 CAN'],
-    ['3', 'Gone Foods', 'GONE', '00012000161155', '', '', '2024-01-01', '2024-05-01', '', '', ''],
-    ['4', 'Mutti', 'MUTTI', '3017620422003', '', '', '2024-01-01', '', '15', 'g', '1 Tbsp'],
+    ['fdc_id', 'brand_owner', 'brand_name', 'gtin_upc', 'ingredients', 'package_weight', 'available_date', 'discontinued_date', 'serving_size', 'serving_size_unit', 'household_serving_fulltext', 'branded_food_category'],
+    ['1', 'The Coca-Cola Company', 'COCA-COLA', '049000028904', 'WATER, "SUGAR"\nAND MORE', '20 OZA/591 mL', '2020-01-01', '', '', '', '', 'Soda'],
+    ['2', 'The Coca-Cola Company', 'COCA-COLA', '00049000028904', '', '20 OZA/591 mL', '2024-06-01', '', '355', 'ml', '1 CAN', 'Soda'],
+    ['3', 'Gone Foods', 'GONE', '00012000161155', '', '', '2024-01-01', '2024-05-01', '', '', '', ''],
+    ['4', 'Mutti', 'MUTTI', '3017620422003', '', '', '2024-01-01', '', '15', 'g', '1 Tbsp', 'Breads & Buns'],
   ]));
   writeFileSync(join(dir, 'usda', 'food_nutrient.csv'), csv([
     ['id', 'fdc_id', 'nutrient_id', 'amount'],
@@ -63,11 +63,17 @@ describe('the built-in copy', () => {
     expect(await find('0011225139499')).toMatchObject({ name: 'Round toothpicks, 250 pcs', imageUrl: 'https://images.openproductsfacts.org/images/products/001/122/513/9499/front_en.7.200.jpg', source: 'Open Products Facts (built-in copy)' });
   });
   it('takes USDA\'s latest label, in normal capitals, with a readable size', async () => {
-    expect(await find('0049000028904')).toEqual({ name: 'Coca-Cola Classic, 20 fl oz', brand: 'Coca-Cola', imageUrl: undefined, source: 'USDA FoodData Central (built-in copy)',
+    expect(await find('0049000028904')).toEqual({ name: 'Coca-Cola Classic, 20 fl oz', brand: 'Coca-Cola', imageUrl: undefined, source: 'USDA FoodData Central (built-in copy)', category: 'drinks',
       nutrition: { per: 'ml', kcal: 42, sugars: 10.6, sodiumMg: 10, protein: 0, serving: '1 can (355 ml)', servingSize: 355 } });
   });
   it('fills nutrition an open database lacks from USDA, without changing its name', async () => {
     expect(await find('3017620422003')).toMatchObject({ name: 'Nutella, 400 g', nutrition: { per: 'g', kcal: 539, fat: 30.9, serving: '1 tbsp (15 g)', servingSize: 15 } });
+  });
+  it('files each product under a category: Open Food Facts tags, then USDA\'s category, then the name', async () => {
+    expect((await find('3017620422003'))?.category).toBe('sweets'); // tags win over USDA's "Breads & Buns"
+    expect((await find('0757528051723'))?.category).toBe('snacks'); // no tags: from the name
+    expect((await find('0049000028904'))?.category).toBe('drinks'); // USDA "Soda"
+    expect((await find('0011225139499'))?.category).toBe('household'); // Open Products Facts
   });
   it('leaves out discontinued products and codes that cannot be scanned', async () => {
     expect(await find('0012000161155')).toBeNull();

@@ -6,9 +6,11 @@ import type { Nutrition } from '../data/nutrition';
 import type { Item } from '../data/types';
 import { Sheet, Stepper, Thumb } from '../ui/kit';
 import { NutritionFacts } from '../ui/NutritionFacts';
+import { categoryFromWords, CATEGORIES } from '../data/categories';
+import { shrinkPhoto } from '../ui/photo';
 
 /** What the sheet hands back when it edits something other than a pantry item. */
-export interface SheetValues { name: string; brand: string; quantity: number; expiresOn: string }
+export interface SheetValues { name: string; brand: string; quantity: number; expiresOn: string; category?: string; photo?: string }
 
 /** What the sheet starts from: an item in the pantry, a product just scanned, or nothing. */
 export interface Draft {
@@ -21,6 +23,9 @@ export interface Draft {
   quantity: number;
   expiresOn?: string;
   nutrition?: Nutrition;
+  category?: string;
+  /** What the camera saw when it was scanned. */
+  photo?: string;
   /** Look the barcode up while the sheet is open, filling in what the user has not typed. */
   lookUp?: boolean;
   /** How the sheet was reached, for its title and button. */
@@ -45,6 +50,9 @@ export function ItemSheet({ draft, onClose, onSave, onRemove }: {
   const { repo, toast } = useApp();
   const [nutrition, setNutrition] = useState(draft.nutrition);
   const [imageUrl, setImageUrl] = useState(draft.imageUrl);
+  const [photo, setPhoto] = useState(draft.photo);
+  /** Chosen in the sheet, or found by the lookup. Empty: guessed from the name when saved. */
+  const [category, setCategory] = useState(draft.category ?? '');
   const [result, setResult] = useState<LookupResult | 'looking' | undefined>(draft.lookUp && draft.barcode ? 'looking' : undefined);
   /** Fields the user has typed in; a late lookup leaves them alone. */
   const touched = useRef({ name: false, brand: false });
@@ -63,6 +71,7 @@ export function ItemSheet({ draft, onClose, onSave, onRemove }: {
       if (!touched.current.brand) setBrand((b) => b || p.brand || '');
       setImageUrl((u) => u ?? p.imageUrl);
       setNutrition((n) => n ?? p.nutrition);
+      if (p.category) setCategory((c) => c || p.category!);
     });
     return () => { live = false; };
   }, [draft.lookUp, draft.barcode, attempt]);
@@ -72,9 +81,11 @@ export function ItemSheet({ draft, onClose, onSave, onRemove }: {
     let live = true;
     void lookupOnce(draft.barcode).then((r) => {
       const n = r.status === 'found' ? r.product.nutrition : undefined;
-      if (!live || !n) return;
-      setNutrition(n);
-      if (draft.existing) void repo.setNutrition(draft.existing.id, n);
+      const cat = r.status === 'found' ? r.product.category : undefined;
+      if (!live || (!n && !cat)) return;
+      if (n) setNutrition(n);
+      if (cat) setCategory((c) => c || cat);
+      if (draft.existing) void repo.setNutrition(draft.existing.id, n, cat);
     }).catch(() => undefined);
     return () => { live = false; };
   }, [draft, repo]);
@@ -90,8 +101,10 @@ export function ItemSheet({ draft, onClose, onSave, onRemove }: {
   const save = async (e: Event) => {
     e.preventDefault();
     if (!canSave) return;
-    if (onSave) { await onSave({ name: trimmed, brand, quantity, expiresOn }); onClose(); return; }
+    const finalCategory = category || categoryFromWords(`${trimmed} ${brand}`);
+    if (onSave) { await onSave({ name: trimmed, brand, quantity, expiresOn, category: finalCategory, photo }); onClose(); return; }
     await repo.saveItem({
+      category: finalCategory, photo,
       id: draft.existing?.id, barcode: draft.barcode, name: trimmed, brand, imageUrl, quantity, expiresOn, unit: draft.existing?.unit, storage: draft.existing?.storage,
       nutrition: nutrition ?? draft.existing?.nutrition, lookup: notFound ? 'not_found' : 'pending',
     });
@@ -115,10 +128,16 @@ export function ItemSheet({ draft, onClose, onSave, onRemove }: {
     <Sheet title={TITLE[draft.mode]} onClose={onClose}>
       <form onSubmit={(e) => void save(e)}>
         <div class="product">
-          <Thumb name={trimmed || '?'} src={imageUrl} big />
+          <Thumb name={trimmed || '?'} src={imageUrl ?? photo} big />
           <div style={{ minWidth: 0 }}>
             <p style={{ fontWeight: 600, fontSize: 17 }}>{trimmed || (result === 'looking' ? 'Looking up…' : 'New item')}</p>
             <p class="muted small">{draft.barcode ? `Barcode ${draft.barcode}` : 'No barcode'}</p>
+            {!imageUrl && (
+              <label class="link-btn small-link">
+                {photo ? (draft.photo === photo && draft.barcode ? 'Photo from the scan · Retake' : 'Retake photo') : 'Add a photo'}
+                <input type="file" accept="image/*" capture="environment" class="sr-only" onChange={async (e) => { const f = e.currentTarget.files?.[0]; if (f) { const p = await shrinkPhoto(f); if (p) setPhoto(p); } }} />
+              </label>
+            )}
           </div>
         </div>
         {result && result !== 'looking' && result.status !== 'found' && !trimmed && (
@@ -134,6 +153,12 @@ export function ItemSheet({ draft, onClose, onSave, onRemove }: {
         </label>
         <label class="field"><span>Brand (optional)</span>
           <input class="input" value={brand} autocomplete="off" autocapitalize="words" enterkeyhint="done" onInput={(e) => { setBrand(e.currentTarget.value); touched.current.brand = true; }} />
+        </label>
+        <label class="field"><span>Category</span>
+          <select class="input" value={category} onChange={(e) => setCategory(e.currentTarget.value)}>
+            <option value="">{categoryFromWords(`${trimmed} ${brand}`) ? `Automatic (${CATEGORIES.find((c) => c.id === categoryFromWords(`${trimmed} ${brand}`))?.label})` : 'Automatic'}</option>
+            {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
         </label>
         <div class="field"><span>Quantity{draft.existing?.unit ? ` (${draft.existing.unit})` : ''}</span>
           <Stepper label="Quantity" value={quantity} min={1} large onChange={setQuantity} />
