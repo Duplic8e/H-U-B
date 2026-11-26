@@ -2,7 +2,7 @@ import { barcodeId } from './barcode';
 import { PantryDB } from './db';
 import type { LookupResult } from './lookup';
 import type { Nutrition } from './nutrition';
-import type { Dump, Item, Recipe, Scan } from './types';
+import { PREFS_ID, type Dump, type Item, type Prefs, type Recipe, type Scan } from './types';
 
 const uid = () => crypto.randomUUID();
 const clean = (s?: string) => s?.trim() || undefined;
@@ -17,6 +17,8 @@ export interface ItemInput {
   expiresOn?: string;
   nutrition?: Nutrition;
   lookup?: Item['lookup'];
+  unit?: string;
+  storage?: Item['storage'];
 }
 
 export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
@@ -49,6 +51,7 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
         quantity: Math.max(1, Math.round(input.quantity)), expiresOn: input.expiresOn || undefined, nutrition: input.nutrition,
         // A name typed or found ends the wait; an item without one keeps waiting for its lookup.
         lookup: input.name.trim() ? undefined : input.lookup ?? (input.barcode ? 'pending' : undefined),
+        ...(input.unit ? { unit: input.unit } : {}), ...(input.storage ? { storage: input.storage } : {}),
       });
       changed();
       return id;
@@ -163,6 +166,35 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
       return { added: scans.reduce((n, s) => n + s.count, 0) };
     },
 
+    // ---- preferences ----
+    async getPrefs(): Promise<Prefs> {
+      return (await db.prefs.get(PREFS_ID)) ?? { id: PREFS_ID, updatedAt: new Date(0).toISOString(), appliances: [] };
+    },
+    async setAppliances(appliances: string[]) {
+      const prefs = await repo.getPrefs();
+      const clean = [...new Set(appliances.map((a) => a.trim()).filter(Boolean))];
+      await db.prefs.put({ ...prefs, appliances: clean, updatedAt: stamp() });
+      changed();
+    },
+
+    // ---- fresh meat (no barcode) ----
+    /** Adds fresh meat by kind and where it is kept. The same kind and place is one row; adding
+     *  more adds to it (or replaces the count when the unit changed). Returns the new quantity. */
+    async addMeat(input: { key: string; name: string; quantity: number; unit: string; storage: 'fridge' | 'freezer'; expiresOn?: string }): Promise<number> {
+      const id = `m:${input.key}:${input.storage}`;
+      const row = await db.items.get(id);
+      const live = row && !row.deletedAt ? row : undefined;
+      const sameUnit = live && (live.unit ?? 'packs') === input.unit;
+      const quantity = Math.max(1, Math.round(input.quantity)) + (sameUnit ? live!.quantity : 0);
+      const dates = [sameUnit ? live?.expiresOn : undefined, input.expiresOn].filter((d): d is string => !!d).sort();
+      await db.items.put({
+        id, updatedAt: stamp(), name: input.storage === 'freezer' ? `${input.name} (frozen)` : input.name,
+        quantity, unit: input.unit, storage: input.storage, expiresOn: dates[0],
+      });
+      changed();
+      return quantity;
+    },
+
     // ---- recipes ----
     async listRecipes(): Promise<Recipe[]> {
       return (await db.recipes.toArray()).filter((r) => !r.deletedAt).sort((a, b) => a.title.localeCompare(b.title));
@@ -197,13 +229,13 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
 
     // ---- sync and backup ----
     async dumpAll(): Promise<Dump> {
-      return { items: await db.items.toArray(), recipes: await db.recipes.toArray() };
+      return { items: await db.items.toArray(), recipes: await db.recipes.toArray(), prefs: await db.prefs.toArray() };
     },
     /** Merges rows by id; the newer `updatedAt` wins, ties keep this device's row. */
-    async mergeAll(remote: { items: Item[]; recipes?: Recipe[] }) {
+    async mergeAll(remote: { items: Item[]; recipes?: Recipe[]; prefs?: Prefs[] }) {
       quiet = true;
       try {
-        await db.transaction('rw', db.items, db.recipes, async () => {
+        await db.transaction('rw', db.items, db.recipes, db.prefs, async () => {
           const merge = async <T extends { id: string; updatedAt: string }>(table: import('dexie').Table<T, string>, rows: T[]) => {
             const local = new Map((await table.bulkGet(rows.map((r) => r.id))).filter((r): r is T => !!r).map((r) => [r.id, r]));
             const winners = rows.filter((r) => { const mine = local.get(r.id); return !mine || r.updatedAt > mine.updatedAt; });
@@ -212,6 +244,7 @@ export function createRepo(db: PantryDB, now: () => Date = () => new Date()) {
           await merge(db.items, remote.items);
           // Backups written before recipes existed have none.
           await merge(db.recipes, remote.recipes ?? []);
+          await merge(db.prefs, remote.prefs ?? []);
         });
       } finally {
         quiet = false;

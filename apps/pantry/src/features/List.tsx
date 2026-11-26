@@ -3,9 +3,10 @@ import { useApp } from '../context';
 import { expiryLabel, expiryState, matches, sortItems, today } from '../data/expiry';
 import type { Item } from '../data/types';
 import { HUB_URL } from '../sync/sync';
+import { withUnit } from '../data/meat';
 import { Header, Icon, Stepper, Thumb, useLive } from '../ui/kit';
 
-export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () => void; onOpen: (item: Item) => void }) {
+export function List({ onScan, onAdd, onMeat, onOpen }: { onScan: () => void; onAdd: () => void; onMeat: () => void; onOpen: (item: Item) => void }) {
   const { repo, toast } = useApp();
   const items = useLive(() => repo.listItems());
   const scans = useLive(() => repo.listScans());
@@ -61,8 +62,8 @@ export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () 
                         {!item.name
                           ? <span class={`row-sub${waiting ? '' : ' soon'}`}>{waiting ? `Barcode ${item.barcode ?? ''}` : 'Not in the databases. Tap to name it.'}</span>
                           : item.expiresOn
-                            ? <span class={`row-sub ${state === 'ok' ? '' : state}`}>{expiryLabel(item.expiresOn, day)}</span>
-                            : item.brand && <span class="row-sub">{item.brand}</span>}
+                            ? <span class={`row-sub ${state === 'ok' ? '' : state}`}>{item.unit ? `${withUnit(item.quantity, item.unit)} · ` : ''}{expiryLabel(item.expiresOn, day)}</span>
+                            : (item.unit || item.brand) && <span class="row-sub">{item.unit ? withUnit(item.quantity, item.unit) : item.brand}</span>}
                       </span>
                     </button>
                     <Stepper label={`Quantity of ${title}`} value={item.quantity} onChange={(next) => void change(item, next)} />
@@ -76,7 +77,8 @@ export function List({ onScan, onAdd, onOpen }: { onScan: () => void; onAdd: () 
       <div class="actions">
         <div class="actions-inner">
           <button type="button" class="btn primary" onClick={onScan}><Icon name="scan" />Scan barcode</button>
-          <button type="button" class="btn add" aria-label="Add by hand" onClick={onAdd}><Icon name="plus" />Add</button>
+          <button type="button" class="btn add" aria-label="Add chicken or beef" onClick={onMeat}><Icon name="meat" />Meat</button>
+          <button type="button" class="btn add icon-only" aria-label="Add by hand" onClick={onAdd}><Icon name="plus" /></button>
         </div>
       </div>
     </>

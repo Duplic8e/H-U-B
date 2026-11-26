@@ -27,6 +27,14 @@ What food is at home, for the Hub. Served at `/H-U-B/pantry/`.
   marked in the pantry, missing, or a kitchen basic. Save the ones you like to the recipe book (backed up
   with the pantry), or type in your own; the book lists what you can make now first. "I cooked this"
   takes the packs you finished out of the pantry.
+- **Meat**: chicken (breasts, thighs, wings, drumsticks, whole, ground) and beef (ground, steaks, stewing,
+  roast) have no barcode, so the Meat button adds them: how many, counted in pieces / packs / whole / lb /
+  kg, kept in the fridge or freezer, with a use-by date suggested from food-safety guidance (change it to
+  the pack's date). The same cut in the same place is one row; adding more adds to it.
+- **Appliances**: on the Recipes screen, tick the appliances in your kitchen (or type others). Recipe
+  ideas then use only those: the prompt says so and the answer's schema only allows those appliance
+  names; a suggestion listing another is dropped. Saved recipes needing an appliance you don't have say so.
+  The list is backed up with the pantry.
 - **Quantity**: scanning a product you already have adds one. Minus uses one up; the last one removes
   the item, with Undo.
 - **Expiry date**, optional, one per product. Dated items list soonest first; expired items and those

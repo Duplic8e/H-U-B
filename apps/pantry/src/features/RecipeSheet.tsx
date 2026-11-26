@@ -41,6 +41,7 @@ export function RecipeSheet({ shown, items, onClose, onEdit, onSaved }: { shown:
     <Sheet title={r.title} onClose={onClose}>
       {meta(r) && <p class="muted" style={{ margin: '0 0 6px' }}>{meta(r)}</p>}
       {r.summary && <p style={{ margin: '0 0 12px' }}>{r.summary}</p>}
+      {!!r.appliances?.length && <p class="small" style={{ margin: '-4px 0 12px' }}><b>Uses:</b> {r.appliances.join(', ')}</p>}
       {cooking ? (
         <>
           <p class="section-label" style={{ marginTop: 8 }}>Did you use any of these up?</p>

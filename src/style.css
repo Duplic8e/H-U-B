@@ -447,3 +447,61 @@ input:focus {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+
+.sync-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--brand);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sync-all:active {
+  opacity: 0.6;
+}
+
+.sync-all:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.sync-all:disabled svg {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sync-all:disabled svg {
+    animation: none;
+  }
+}
+
+.app-status[data-tone='busy']::before {
+  background: var(--brand);
+}
+
+.sync-frame {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  left: -10px;
+  top: -10px;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}

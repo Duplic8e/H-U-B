@@ -20,7 +20,7 @@ export function RecipeEditor({ recipe, onClose }: { recipe?: Recipe; onClose: ()
     const links = new Map((recipe?.ingredients ?? []).map((i) => [ingredientLine(i), i.itemId]));
     const n = (s: string) => { const v = Math.round(Number(s)); return Number.isFinite(v) && v > 0 ? v : undefined; };
     await repo.saveRecipe({
-      id: recipe?.id, title, source: recipe?.source ?? 'mine', summary: recipe?.summary, kcalPerServing: recipe?.kcalPerServing,
+      id: recipe?.id, title, source: recipe?.source ?? 'mine', summary: recipe?.summary, kcalPerServing: recipe?.kcalPerServing, appliances: recipe?.appliances,
       minutes: n(minutes), servings: n(servings),
       ingredients: ingredients.split('\n').filter((l) => l.trim()).map((l) => { const i = parseIngredientLine(l); const itemId = links.get(l.trim()); return itemId ? { ...i, itemId } : i; }),
       steps: steps.split('\n'),

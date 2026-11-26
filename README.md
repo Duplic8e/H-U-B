@@ -47,6 +47,14 @@ Every sync is a commit, so the repo's history is also a full undo history.
 Open the Hub in Safari → Share → Add to Home Screen → ⚙ Settings → same token → Connect. Then open each
 helper: Ledger and Torque restore their own data from the cloud.
 
+### Sync all apps
+
+The Hub's home page has a **Sync all apps** button (shown once the cloud is connected). It syncs every
+helper in turn without opening them: each app is loaded in a hidden frame with `?hubsync=1`, where it only
+runs its own sync (`src/hubSyncRun.ts` in each app) and posts the result back. Each card then says
+"Synced just now" or "Needs attention" (the reason is in its tooltip and in the summary card). An app
+that never answers is given up on after a minute. A Ledger conflict still has to be settled in Ledger.
+
 ### How the sync behaves
 
 - **Torque** merges record by record (newest edit wins), so two devices never conflict.
@@ -85,6 +93,9 @@ sync, and a fresh-install restore.
 
 `tests/e2e/pantry.mjs` drives Pantry with a fake camera that shows a generated barcode: scan, look up,
 save, count, use up, sync, and a fresh-install restore.
+
+`tests/e2e/sync-all.mjs` drives Sync all on the assembled site: a fresh phone syncs all five helpers
+without opening them (Pantry pulls another phone's items), and a revoked token is reported on every card.
 
 `tests/e2e/hub.mjs` drives the assembled site against a simulated GitHub: connect, use both helpers, wipe
 the browser, and check both restore. See the comment at its top for how to run it.

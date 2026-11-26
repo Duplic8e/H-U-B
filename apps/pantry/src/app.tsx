@@ -11,6 +11,7 @@ import { Scanner, type Batch, type ScanMode } from './ui/Scanner';
 import { unlockSound } from './ui/beep';
 import { Groceries } from './features/Groceries';
 import { Recipes } from './features/Recipes';
+import { MeatSheet } from './features/MeatSheet';
 import { GroceryLookups, ItemLookups } from './data/groceryLookups';
 import { useLive } from './ui/kit';
 
@@ -36,6 +37,7 @@ export function App() {
   const [message, setMessage] = useState<Toast | null>(null);
   const [scanning, setScanning] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [meat, setMeat] = useState(false);
   const [scanMode, setScanMode] = useState<ScanMode>(savedMode);
   const [lastScan, setLastScan] = useState<string | null>(null);
   const scans = useLive(() => repo.listScans());
@@ -96,7 +98,8 @@ export function App() {
   return (
     <Ctx.Provider value={ctx}>
       <div class="app">
-        {route === 'settings' ? <Settings /> : route === 'recipes' ? <Recipes /> : route === 'groceries' ? <Groceries onScanMore={() => { changeMode('many'); startScan(); }} /> : <List onScan={startScan} onAdd={addByHand} onOpen={open} />}
+        {route === 'settings' ? <Settings /> : route === 'recipes' ? <Recipes /> : route === 'groceries' ? <Groceries onScanMore={() => { changeMode('many'); startScan(); }} /> : <List onScan={startScan} onAdd={addByHand} onMeat={() => setMeat(true)} onOpen={open} />}
+        {meat && <MeatSheet onClose={() => setMeat(false)} />}
         {scanning && <Scanner mode={scanMode} onMode={changeMode} onCode={(code) => void onCode(code)} onBatchCode={onBatchCode} batch={batch} onReview={review} onClose={closeScanner} onManual={addByHand} />}
         {draft && <ItemSheet key={`${draft.mode}:${draft.existing?.id ?? draft.barcode ?? ''}`} draft={draft} onClose={closeDraft} />}
         {message && (

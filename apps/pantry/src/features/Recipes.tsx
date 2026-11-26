@@ -6,6 +6,7 @@ import { fit } from '../data/recipes';
 import type { Recipe } from '../data/types';
 import { Header, Icon, useLive } from '../ui/kit';
 import { RecipeEditor } from './RecipeEditor';
+import { AppliancesSheet } from './AppliancesSheet';
 import { recipeMeta, RecipeSheet, type Shown } from './RecipeSheet';
 
 // Kept for the rest of the visit, so going to the pantry and back does not lose them.
@@ -17,6 +18,9 @@ export function Recipes() {
   const { repo } = useApp();
   const items = useLive(() => repo.listItems()) ?? [];
   const book = useLive(() => repo.listRecipes());
+  const prefs = useLive(() => repo.getPrefs());
+  const appliances = prefs?.appliances ?? [];
+  const [pickAppliances, setPickAppliances] = useState(false);
   const [options, setOptions] = useState<SuggestOptions>({});
   const [suggestions, setSuggestions] = useState<Suggestion[]>(lastSuggestions);
   const [busy, setBusy] = useState(false);
@@ -29,7 +33,7 @@ export function Recipes() {
     setBusy(true);
     setError(undefined);
     try {
-      const next = await suggestRecipes(items, today(), options);
+      const next = await suggestRecipes(items, today(), { ...options, appliances });
       lastSuggestions = next;
       setSuggestions(next);
     } catch (e) {
@@ -39,8 +43,12 @@ export function Recipes() {
     }
   };
 
-  const ranked = (book ?? []).map((r) => ({ r, f: fit(r, items) })).sort((a, b) => a.f.missing.length - b.f.missing.length || a.r.title.localeCompare(b.r.title));
-  const fitLine = (f: ReturnType<typeof fit>) => (f.missing.length === 0 ? 'You have everything' : `Missing ${f.missing.length}: ${f.missing.slice(0, 3).map((m) => m.name).join(', ')}${f.missing.length > 3 ? '…' : ''}`);
+  /** Appliances a saved recipe needs that the kitchen does not have. */
+  const lacking = (r: Pick<Recipe, 'appliances'>) => (appliances.length ? (r.appliances ?? []).filter((a) => !appliances.includes(a)) : []);
+  const ranked = (book ?? []).map((r) => ({ r, f: fit(r, items), needs: lacking(r) }))
+    .sort((a, b) => a.needs.length - b.needs.length || a.f.missing.length - b.f.missing.length || a.r.title.localeCompare(b.r.title));
+  const fitLine = (f: ReturnType<typeof fit>, needs: string[] = []) => (needs.length ? `Needs ${needs.join(' and ')}`
+    : f.missing.length === 0 ? 'You have everything' : `Missing ${f.missing.length}: ${f.missing.slice(0, 3).map((m) => m.name).join(', ')}${f.missing.length > 3 ? '…' : ''}`);
 
   return (
     <>
@@ -55,6 +63,13 @@ export function Recipes() {
             </>
           ) : (
             <>
+              <button type="button" class="row kitchen" onClick={() => setPickAppliances(true)}>
+                <span class="row-main">
+                  <span class="row-title">Your appliances</span>
+                  <span class="row-sub">{appliances.length ? appliances.join(', ') : 'Not set: recipes may use any appliance'}</span>
+                </span>
+                <span class="link-btn" style={{ minHeight: 0 }}>{appliances.length ? 'Change' : 'Set'}</span>
+              </button>
               <label class="field" style={{ marginTop: 8 }}><span>What do you feel like? (optional)</span>
                 <input class="input" value={options.request ?? ''} placeholder="e.g. something warm for dinner" enterkeyhint="go" onInput={(e) => setOptions({ ...options, request: e.currentTarget.value })} onKeyDown={(e) => { if (e.key === 'Enter' && !busy) void ask(); }} />
               </label>
@@ -100,12 +115,12 @@ export function Recipes() {
           <p class="muted" style={{ margin: '0 4px' }}>Save a suggestion, or tap + to type in a recipe of your own.</p>
         ) : (
           <ul class="list" aria-label="Recipe book">
-            {ranked.map(({ r, f }) => (
+            {ranked.map(({ r, f, needs }) => (
               <li key={r.id}>
                 <button type="button" class="row" onClick={() => setShown({ kind: 'saved', recipe: r })}>
                   <span class="row-main">
                     <span class="row-title wrap">{r.title}</span>
-                    <span class={`row-sub ${f.missing.length ? '' : 'ok'}`}>{fitLine(f)}</span>
+                    <span class={`row-sub ${f.missing.length || needs.length ? (needs.length ? 'soon' : '') : 'ok'}`}>{fitLine(f, needs)}</span>
                   </span>
                 </button>
               </li>
@@ -123,6 +138,7 @@ export function Recipes() {
           onSaved={async (id) => { const saved = await repo.getRecipe(id); if (saved) setShown({ kind: 'saved', recipe: saved }); }}
         />
       )}
+      {pickAppliances && <AppliancesSheet current={appliances} onClose={() => setPickAppliances(false)} />}
       {editing && <RecipeEditor recipe={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}
     </>
   );
